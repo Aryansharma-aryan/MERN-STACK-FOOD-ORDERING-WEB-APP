@@ -19,6 +19,8 @@ export default function Signup() {
     try {
      const response = await fetch(`${import.meta.env.VITE_API_URL}/signup`, {
   method: "POST",
+   credentials: "include", // send cookies
+    mode: "cors", // tell browser this is a cross-origin request
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify(formData),
 });

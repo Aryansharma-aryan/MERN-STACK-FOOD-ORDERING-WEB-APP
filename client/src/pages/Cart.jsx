@@ -76,6 +76,8 @@ export default function Cart({ cart, setCart }) {
 
 const response = await fetch(`${API_URL}/orders`, {
   method: "POST",
+   credentials: "include", // send cookies
+    mode: "cors", // tell browser this is a cross-origin request
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify(orderData),
 });
