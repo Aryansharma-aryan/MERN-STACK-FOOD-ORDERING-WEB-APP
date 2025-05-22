@@ -20,6 +20,7 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function (origin, callback) {
+    console.log("Request Origin:", origin);
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -28,15 +29,6 @@ app.use(cors({
   },
   credentials: true,
 }));
-
-// ✅ Socket.io with CORS
-const io = new Server(server, {
-  cors: {
-    origin: allowedOrigins,
-    credentials: true,
-    methods: ["GET", "POST"]
-  }
-});
 
 // ✅ Middleware
 app.use("/uploads", express.static("uploads"));
@@ -48,11 +40,20 @@ app.use(cookieParser());
 mongodb();
 
 // ✅ Routes
-app.use("/api", authRoutes);
+app.use("/api", authRoutes); // Example: /api/login
 
-// ✅ Socket.io Events
+// ✅ Socket.io with CORS
+const io = new Server(server, {
+  cors: {
+    origin: allowedOrigins,
+    credentials: true,
+    methods: ["GET", "POST"]
+  }
+});
+
+// ✅ Socket Events
 io.on("connection", (socket) => {
-  console.log("🔌 Connected:", socket.id);
+  console.log("🔌 Socket Connected:", socket.id);
 
   socket.on("updateLocation", ({ deliveryPersonId, lat, lng }) => {
     console.log(`📍 ${deliveryPersonId}: ${lat}, ${lng}`);
@@ -60,11 +61,11 @@ io.on("connection", (socket) => {
   });
 
   socket.on("disconnect", () => {
-    console.log("❌ Disconnected:", socket.id);
+    console.log("❌ Socket Disconnected:", socket.id);
   });
 });
 
-// ✅ Error Handler
+// ✅ Global Error Handler
 app.use((err, req, res, next) => {
   if (err.message && err.message.includes("CORS")) {
     return res.status(403).json({ error: err.message });
@@ -77,5 +78,4 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 3100;
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Server running at http://0.0.0.0:${PORT}`);
-  
 });
