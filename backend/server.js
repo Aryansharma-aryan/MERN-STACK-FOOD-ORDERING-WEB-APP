@@ -8,6 +8,8 @@ const authRoutes = require("./routes/auth");
 
 const app = express();
 const server = http.createServer(app); // 👈 Use HTTP server for Socket.io
+require('dotenv').config();
+
 
 const io = new Server(server, {
   cors: {
