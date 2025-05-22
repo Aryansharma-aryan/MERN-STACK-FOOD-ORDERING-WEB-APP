@@ -9,7 +9,7 @@ const DisplayData = ({ setCart = () => {} }) => {
       try {
         const API_URL = import.meta.env.VITE_API_URL; // Ensure this is set correctly in your environment
 
-        const response = await fetch(`${API_URL}/food`, {
+        const response = await fetch(`${API_URL}/api/food`, {
           mode: "cors",            // Added mode: cors
           credentials: "include",  // Added credentials: include (optional)
         });
@@ -222,7 +222,7 @@ const DisplayData = ({ setCart = () => {} }) => {
 
                         try {
                           const res = await fetch(
-                            `http://localhost:3100/api/${food._id}/review`,
+                            `${import.meta.env.VITE_API_URL}/api/${food._id}/review`,
                             {
                               method: "POST",
                               headers: { "Content-Type": "application/json" },

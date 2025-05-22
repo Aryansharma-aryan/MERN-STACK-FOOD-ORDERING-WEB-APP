@@ -74,7 +74,7 @@ export default function Cart({ cart, setCart }) {
           try {
            const API_URL = import.meta.env.VITE_API_URL;
 
-const response = await fetch(`${API_URL}/orders`, {
+const response = await fetch(`${API_URL}/api/orders`, {
   method: "POST",
    credentials: "include", // send cookies
     mode: "cors", // tell browser this is a cross-origin request

@@ -20,7 +20,7 @@ export default function OrderPage() {
         if (!userId) throw new Error("User ID not found. Please log in.");
 const API_URL = import.meta.env.VITE_API_URL; // Ensure this is set correctly in your environment
 
-const response = await axios.get(`${API_URL}/orders/${userId}`, {
+const response = await axios.get(`${API_URL}/api/orders/${userId}`, {
     headers: { "Content-Type": "application/json" },
 });
 
