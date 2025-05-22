@@ -8,11 +8,11 @@ const Navbar = ({ cart = [], handleLogout, isAdmin }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  // Update auth status on location change
+  // Update auth status and close menu on route change
   useEffect(() => {
     const token = localStorage.getItem("authToken");
     setIsAuthenticated(!!token);
-    setIsMenuOpen(false); // Close menu on route change
+    setIsMenuOpen(false);
   }, [location]);
 
   const toggleMenu = () => {
@@ -21,7 +21,7 @@ const Navbar = ({ cart = [], handleLogout, isAdmin }) => {
 
   return (
     <nav
-      className="navbar navbar-expand-lg px-4 py-1 shadow"
+      className="navbar px-4 py-1 shadow"
       style={{ backgroundColor: "#0A192F" }}
     >
       <div className="container-fluid">
@@ -39,27 +39,23 @@ const Navbar = ({ cart = [], handleLogout, isAdmin }) => {
           Food Mania
         </Link>
 
-        {/* Navbar Toggler for mobile */}
-        {isAuthenticated && (
-          <button
-            className="navbar-toggler"
-            type="button"
-            aria-label="Toggle navigation"
-            aria-expanded={isMenuOpen}
-            onClick={toggleMenu}
-          >
-            <span
-              className="navbar-toggler-icon"
-              style={{ filter: "invert(1)" }}
-            ></span>
-          </button>
-        )}
+        {/* Always show Navbar Toggler */}
+        <button
+          className="navbar-toggler"
+          type="button"
+          aria-label="Toggle navigation"
+          aria-expanded={isMenuOpen}
+          onClick={toggleMenu}
+          style={{ filter: "invert(1)" }}
+        >
+          <span className="navbar-toggler-icon"></span>
+        </button>
 
         {/* Navbar Menu */}
         <div
-          className={`collapse navbar-collapse justify-content-end ${
-            isMenuOpen ? "show" : ""
-          }`}
+          className={`justify-content-end ${
+            isMenuOpen ? "d-flex" : "d-none"
+          } navbar-collapse`}
           id="navbarNav"
         >
           <ul className="navbar-nav align-items-center">
@@ -76,14 +72,9 @@ const Navbar = ({ cart = [], handleLogout, isAdmin }) => {
                   </Link>
                 </li>
                 <li className="nav-item">
-                  <Link
-                    className="nav-link text-warning mx-2 fw-bold"
-                    to="/cart"
-                  >
+                  <Link className="nav-link text-warning mx-2 fw-bold" to="/cart">
                     🛒 Cart{" "}
-                    <span className="badge bg-light text-dark">
-                      {cart.length}
-                    </span>
+                    <span className="badge bg-light text-dark">{cart.length}</span>
                   </Link>
                 </li>
 
@@ -97,10 +88,7 @@ const Navbar = ({ cart = [], handleLogout, isAdmin }) => {
                 )}
 
                 <li className="nav-item">
-                  <button
-                    className="btn btn-danger mx-2"
-                    onClick={handleLogout}
-                  >
+                  <button className="btn btn-danger mx-2" onClick={handleLogout}>
                     Logout
                   </button>
                 </li>
