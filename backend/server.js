@@ -18,14 +18,12 @@ const allowedOrigins = [
   process.env.FRONTEND_URL_VERCEL
 ].filter(Boolean);
 
-// ✅ CORS Middleware for Express
 app.use(cors({
   origin: function (origin, callback) {
-    console.log("Request Origin:", origin);
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error("Not allowed by CORS: " + origin));
+      callback(new Error("CORS not allowed for this origin"));
     }
   },
   credentials: true,
