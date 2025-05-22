@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const URI = "mongodb+srv://arsharma2951:aryan2951@cluster0.d2ryr.mongodb.net/practice";
+const URI = process.env.URI || "mongodb+srv://arsharma2951:aryan2951@cluster0.d2ryr.mongodb.net/practice"
 
 const mongodb = async () => {
     try {
