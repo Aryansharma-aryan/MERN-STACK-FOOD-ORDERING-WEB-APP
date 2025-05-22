@@ -72,11 +72,14 @@ export default function Cart({ cart, setCart }) {
           console.log("🚀 Sending order:", orderData);
 
           try {
-            const response = await fetch("http://localhost:3100/api/orders", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(orderData),
-            });
+           const API_URL = import.meta.env.VITE_API_URL;
+
+const response = await fetch(`${API_URL}/api/orders`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(orderData),
+});
+
 
             const data = await response.json();
             if (response.ok) {

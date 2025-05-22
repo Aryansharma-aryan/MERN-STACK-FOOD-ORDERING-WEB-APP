@@ -18,10 +18,12 @@ export default function OrderPage() {
       try {
         const userId = localStorage.getItem("userId");
         if (!userId) throw new Error("User ID not found. Please log in.");
+const API_URL = import.meta.env.VITE_API_URL; // Ensure this is set correctly in your environment
 
-        const response = await axios.get(`http://localhost:3100/api/orders/${userId}`, {
-          headers: { "Content-Type": "application/json" },
-        });
+const response = await axios.get(`${API_URL}/api/orders/${userId}`, {
+    headers: { "Content-Type": "application/json" },
+});
+
 
         setOrders(response.data);
       } catch (err) {
@@ -45,16 +47,17 @@ export default function OrderPage() {
   };
 
   const handleDeleteOrder = async (orderId) => {
-    if (!window.confirm("Are you sure you want to delete this order?")) return;
+  if (!window.confirm("Are you sure you want to delete this order?")) return;
 
-    try {
-      await axios.delete(`http://localhost:3100/api/orders/${orderId}`);
-      setOrders((prevOrders) => prevOrders.filter((order) => order._id !== orderId));
-    } catch (err) {
-      console.error("Error deleting order:", err);
-      alert("❌ Failed to delete order. Please try again.");
-    }
-  };
+  try {
+    // Access the API URL from your .env file
+    await axios.delete(`${import.meta.env.VITE_API_URL}/api/orders/${orderId}`);
+    setOrders((prevOrders) => prevOrders.filter((order) => order._id !== orderId));
+  } catch (err) {
+    console.error("Error deleting order:", err);
+    alert("❌ Failed to delete order. Please try again.");
+  }
+};
 
   return (
     <div className="container mt-5">

@@ -31,10 +31,12 @@ const Checkout = () => {
   const handlePayment = async () => {
     try {
       const amountInPaise = cartTotal * 100; // 🛠️ Correcting here: Convert ₹ to paise
+const API_URL = import.meta.env.VITE_API_URL;
 
-      const response = await axios.post("http://localhost:3100/api/create-order", {
-        amount: amountInPaise, // Send amount in paise to backend
-      });
+const response = await axios.post(`${API_URL}/api/create-order`, {
+  amount: amountInPaise,
+});
+
 
       if (!response.data.success || !response.data.order || !response.data.order.id) {
         alert("Failed to initiate payment.");

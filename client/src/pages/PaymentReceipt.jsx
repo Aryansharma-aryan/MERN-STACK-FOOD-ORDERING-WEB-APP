@@ -10,19 +10,20 @@ const PaymentReceipt = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchPaymentDetails = async () => {
-      try {
-        const response = await axios.get(`http://localhost:3100/api/payment/${paymentId}`);
-        setPaymentDetails(response.data);
-      } catch (err) {
-        setError("Error fetching payment details.",err);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchPaymentDetails = async () => {
+    try {
+      // Access the API URL from your .env file
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/payment/${paymentId}`);
+      setPaymentDetails(response.data);
+    } catch (err) {
+      setError("Error fetching payment details.", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchPaymentDetails();
-  }, [paymentId]);
+  fetchPaymentDetails();
+}, [paymentId]);
 
   if (loading) {
     return (

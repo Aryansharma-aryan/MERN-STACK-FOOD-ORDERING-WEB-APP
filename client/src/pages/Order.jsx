@@ -13,9 +13,12 @@ export default function Order() {
         const userId = localStorage.getItem("userId");
         if (!userId) throw new Error("User ID not found. Please log in.");
 
-        const { data } = await axios.get(`http://localhost:3100/api/orders/${userId}`, {
-          headers: { "Content-Type": "application/json" },
-        });
+       const API_URL = import.meta.env.VITE_API_URL; // Ensure this is set correctly in your environment
+
+const { data } = await axios.get(`${API_URL}/api/orders/${userId}`, {
+    headers: { "Content-Type": "application/json" },
+});
+
 
         setOrders(data);
       } catch (err) {
