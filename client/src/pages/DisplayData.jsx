@@ -9,7 +9,7 @@ const DisplayData = ({ setCart = () => {} }) => {
       try {
        const API_URL = import.meta.env.VITE_API_URL; // Ensure this is set correctly in your environment
 
-const response = await fetch(`${API_URL}/api/food`); // Use the API_URL variable
+const response = await fetch(`${API_URL}/food`); // Use the API_URL variable
 
         if (!response.ok) {
           throw new Error(`HTTP error! Status: ${response.status}`);

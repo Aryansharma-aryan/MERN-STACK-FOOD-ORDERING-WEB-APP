@@ -15,7 +15,7 @@ export default function Order() {
 
        const API_URL = import.meta.env.VITE_API_URL; // Ensure this is set correctly in your environment
 
-const { data } = await axios.get(`${API_URL}/api/orders/${userId}`, {
+const { data } = await axios.get(`${API_URL}/orders/${userId}`, {
     headers: { "Content-Type": "application/json" },
 });
 

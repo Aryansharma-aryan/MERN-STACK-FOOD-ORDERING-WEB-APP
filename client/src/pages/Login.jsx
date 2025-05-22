@@ -19,7 +19,7 @@ export default function Login({ handleLogin }) {
     try {
       const API_URL = import.meta.env.VITE_API_URL; // Ensure this is set correctly in your environment
 
-const response = await fetch(`${API_URL}/api/login`, {
+const response = await fetch(`${API_URL}/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(formData), // Ensure formData is defined and contains the necessary data

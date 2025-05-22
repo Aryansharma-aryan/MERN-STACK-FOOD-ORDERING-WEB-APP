@@ -19,7 +19,7 @@ const AdminDashboard = () => {
   // Fetch food items from the backend
   const fetchFoods = async () => {
     try {
-     const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/food`); // Correct API endpoint
+     const response = await axios.get(`${import.meta.env.VITE_API_URL}/food`); // Correct API endpoint
       setFoods(response.data);
     } catch (error) {
       console.error("Error fetching food items", error);
@@ -30,7 +30,7 @@ const AdminDashboard = () => {
   const handleAddFood = async (e) => {
     e.preventDefault();
     try {
-     const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/addFood`, newFood); // Correct API endpoint
+     const response = await axios.post(`${import.meta.env.VITE_API_URL}/addFood`, newFood); // Correct API endpoint
       alert(response.data.message);
       fetchFoods(); // Refresh the food items list after adding
       setNewFood({ name: "", price: "", description: "", image: "" }); // Reset form fields
@@ -42,7 +42,7 @@ const AdminDashboard = () => {
   // Handle deleting a food item
   const handleDeleteFood = async (foodId) => {
     try {
-     const response = await axios.delete(`${import.meta.env.VITE_API_URL}/api/food/${foodId}`); // Correct API endpoint
+     const response = await axios.delete(`${import.meta.env.VITE_API_URL}/food/${foodId}`); // Correct API endpoint
       alert(response.data.message);
       fetchFoods(); // Refresh the food items list after deletion
     } catch (error) {
@@ -60,7 +60,7 @@ const AdminDashboard = () => {
   const handleUpdateFood = async (e) => {
     e.preventDefault();
     try {
-     const response = await axios.put(`${import.meta.env.VITE_API_URL}/api/food/${editingFood._id}`, newFood); // Correct API endpoint
+     const response = await axios.put(`${import.meta.env.VITE_API_URL}/food/${editingFood._id}`, newFood); // Correct API endpoint
       alert(response.data.message);
       fetchFoods(); // Refresh the food items list after updating
       setEditingFood(null);
