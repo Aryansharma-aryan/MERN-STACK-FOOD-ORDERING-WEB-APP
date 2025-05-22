@@ -7,9 +7,12 @@ const DisplayData = ({ setCart = () => {} }) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-       const API_URL = import.meta.env.VITE_API_URL; // Ensure this is set correctly in your environment
+        const API_URL = import.meta.env.VITE_API_URL; // Ensure this is set correctly in your environment
 
-const response = await fetch(`${API_URL}/food`); // Use the API_URL variable
+        const response = await fetch(`${API_URL}/food`, {
+          mode: "cors",            // Added mode: cors
+          credentials: "include",  // Added credentials: include (optional)
+        });
 
         if (!response.ok) {
           throw new Error(`HTTP error! Status: ${response.status}`);
@@ -211,61 +214,61 @@ const response = await fetch(`${API_URL}/food`); // Use the API_URL variable
                     {/* ⭐ Review Form */}
                     <hr />
                     <form
-  onSubmit={async (e) => {
-    e.preventDefault();
-    const name = e.target.name.value;
-    const rating = parseInt(e.target.rating.value);
-    const comment = e.target.comment.value;
+                      onSubmit={async (e) => {
+                        e.preventDefault();
+                        const name = e.target.name.value;
+                        const rating = parseInt(e.target.rating.value);
+                        const comment = e.target.comment.value;
 
-    try {
-      const res = await fetch(
-       `http://localhost:3100/api/${food._id}/review`, // Corrected URL with /api prefix
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, rating, comment }),
-        }
-      );
-      const data = await res.json();
-      alert(data.message || "Review submitted!");
-      e.target.reset();
-    } catch (err) {
-      alert("Failed to submit review");
-      console.error(err);
-    }
-  }}
->
-  <input
-    name="name"
-    type="text"
-    className="form-control mb-2"
-    placeholder="Your Name"
-    required
-  />
- <select name="rating" className="form-select mb-2" required>
-  <option value="">⭐ Select Rating</option>
-  {[1, 2, 3, 4, 5].map((r) => (
-    <option key={r} value={r}>
-      {"⭐".repeat(r)}
-    </option>
-  ))}
-</select>
+                        try {
+                          const res = await fetch(
+                            `http://localhost:3100/api/${food._id}/review`,
+                            {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              mode: "cors",           // Added mode: cors
+                              credentials: "include", // Added credentials: include (optional)
+                              body: JSON.stringify({ name, rating, comment }),
+                            }
+                          );
+                          const data = await res.json();
+                          alert(data.message || "Review submitted!");
+                          e.target.reset();
+                        } catch (err) {
+                          alert("Failed to submit review");
+                          console.error(err);
+                        }
+                      }}
+                    >
+                      <input
+                        name="name"
+                        type="text"
+                        className="form-control mb-2"
+                        placeholder="Your Name"
+                        required
+                      />
+                      <select name="rating" className="form-select mb-2" required>
+                        <option value="">⭐ Select Rating</option>
+                        {[1, 2, 3, 4, 5].map((r) => (
+                          <option key={r} value={r}>
+                            {"⭐".repeat(r)}
+                          </option>
+                        ))}
+                      </select>
 
-  <textarea
-    name="comment"
-    rows="2"
-    className="form-control mb-2"
-    placeholder="Write your review..."
-  ></textarea>
-  <button
-    type="submit"
-    className="btn btn-outline-primary btn-sm w-100"
-  >
-    Submit Review ✍️
-  </button>
-</form>
-
-
+                      <textarea
+                        name="comment"
+                        rows="2"
+                        className="form-control mb-2"
+                        placeholder="Write your review..."
+                      ></textarea>
+                      <button
+                        type="submit"
+                        className="btn btn-outline-primary btn-sm w-100"
+                      >
+                        Submit Review ✍️
+                      </button>
+                    </form>
                   </div>
                 </div>
               </div>

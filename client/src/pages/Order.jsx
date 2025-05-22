@@ -13,17 +13,20 @@ export default function Order() {
         const userId = localStorage.getItem("userId");
         if (!userId) throw new Error("User ID not found. Please log in.");
 
-       const API_URL = import.meta.env.VITE_API_URL; // Ensure this is set correctly in your environment
+        const API_URL = import.meta.env.VITE_API_URL;
 
-const { data } = await axios.get(`${API_URL}/orders/${userId}`, {
-    headers: { "Content-Type": "application/json" },
-});
-
+        const { data } = await axios.get(`${API_URL}/orders/${userId}`, {
+          headers: { "Content-Type": "application/json" },
+          // You can add withCredentials if your API needs cookies/auth:
+          // withCredentials: true,
+        });
 
         setOrders(data);
       } catch (err) {
         console.error("Error fetching orders:", err);
-        setError(err.response?.data?.message || "Failed to fetch orders. Please try again.");
+        setError(
+          err.response?.data?.message || "Failed to fetch orders. Please try again."
+        );
       } finally {
         setLoading(false);
       }
@@ -47,7 +50,7 @@ const { data } = await axios.get(`${API_URL}/orders/${userId}`, {
         <p className="text-center text-warning">No orders found.</p>
       ) : (
         <div className="table-responsive">
-          <table className="table table-hover table-striped text-center">
+          <table className="table table-hover table-striped text-center align-middle">
             <thead className="table-dark">
               <tr>
                 <th>#</th>
@@ -59,36 +62,54 @@ const { data } = await axios.get(`${API_URL}/orders/${userId}`, {
               </tr>
             </thead>
             <tbody>
-              {orders.map((order, index) => (
-                <tr key={order._id}>
-                  <td>{index + 1}</td>
-                  <td>{order._id}</td>
-                  <td>
-                    <img
-                      src={order.items?.[0]?.image || "https://via.placeholder.com/80"}
-                      alt="Food Item"
-                      className="img-fluid rounded"
-                      style={{ width: "70px", height: "70px", objectFit: "cover" }}
-                      onError={(e) => { e.target.src = "https://via.placeholder.com/80"; }}
-                    />
-                  </td>
-                  <td>
-                    <ul className="list-unstyled mb-0">
-                      {order.items.map((item, idx) => (
-                        <li key={idx}>
-                          {item.name} ({item.quantity} x ₹{item.price})
-                        </li>
-                      ))}
-                    </ul>
-                  </td>
-                  <td>₹{order.totalAmount || order.items.reduce((acc, item) => acc + item.quantity * item.price, 0)}</td>
-                  <td>
-                    <span className={`badge ${order.status === "Delivered" ? "bg-success" : order.status === "Processing" ? "bg-info" : "bg-warning"}`}>
-                      {order.status || "Pending"}
-                    </span>
-                  </td>
-                </tr>
-              ))}
+              {orders.map((order, index) => {
+                // Calculate total if not provided
+                const totalPrice =
+                  order.totalAmount ??
+                  order.items.reduce((acc, item) => acc + item.quantity * item.price, 0);
+
+                return (
+                  <tr key={order._id}>
+                    <td>{index + 1}</td>
+                    <td>{order._id}</td>
+                    <td>
+                      <img
+                        src={order.items?.[0]?.image || "https://via.placeholder.com/80"}
+                        alt="Food Item"
+                        className="img-fluid rounded"
+                        style={{ width: "70px", height: "70px", objectFit: "cover" }}
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = "https://via.placeholder.com/80";
+                        }}
+                      />
+                    </td>
+                    <td>
+                      <ul className="list-unstyled mb-0">
+                        {order.items.map((item, idx) => (
+                          <li key={idx}>
+                            {item.name} ({item.quantity} x ₹{item.price})
+                          </li>
+                        ))}
+                      </ul>
+                    </td>
+                    <td>₹{totalPrice.toFixed(2)}</td>
+                    <td>
+                      <span
+                        className={`badge ${
+                          order.status === "Delivered"
+                            ? "bg-success"
+                            : order.status === "Processing"
+                            ? "bg-info"
+                            : "bg-warning"
+                        }`}
+                      >
+                        {order.status || "Pending"}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
