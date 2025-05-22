@@ -21,6 +21,8 @@ export default function Login({ handleLogin }) {
 
 const response = await fetch(`${API_URL}/login`, {
     method: "POST",
+      mode: "cors", // very important!
+
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(formData), // Ensure formData is defined and contains the necessary data
     credentials: "include",
