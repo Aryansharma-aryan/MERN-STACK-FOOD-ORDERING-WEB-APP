@@ -19,7 +19,7 @@ export default function Login({ handleLogin }) {
     try {
       const API_URL = import.meta.env.VITE_API_URL; // Ensure this is set correctly in your environment
 
-const response = await fetch(`${API_URL}/login`, {
+const response = await fetch(`${API_URL}/api/login`, {
     method: "POST",
       mode: "cors", // very important!
 
