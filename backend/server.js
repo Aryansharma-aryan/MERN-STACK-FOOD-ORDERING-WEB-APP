@@ -11,31 +11,23 @@ const authRoutes = require("./routes/auth");
 const app = express();
 const server = http.createServer(app);
 
-// ✅ Define allowed origins
+// Read from .env
 const allowedOrigins = [
-    process.env.FRONTEND_URL_LOCAL,
-    process.env.FRONTEND_URL_ALT,
-    process.env.FRONTEND_URL_VERCEL
-].filter(Boolean);
+  process.env.FRONTEND_URL_LOCAL,
+  process.env.FRONTEND_URL_ALT,
+  process.env.FRONTEND_URL_VERCEL
+].filter(Boolean); // Remove undefined
 
-console.log("✅ Allowed CORS Origins:", allowedOrigins);
-
-// ✅ CORS middleware
 app.use(cors({
-    origin: function (origin, callback) {
-        if (!origin || allowedOrigins.includes(origin)) {
-            callback(null, true);
-        } else {
-            const msg = `❌ CORS blocked request from: ${origin}`;
-            console.error(msg);
-            callback(new Error(msg));
-        }
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    optionsSuccessStatus: 204
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS: " + origin));
+    }
+  },
+  credentials: true,
 }));
-
 // ✅ Socket.io with CORS
 const io = new Server(server, {
     cors: {
