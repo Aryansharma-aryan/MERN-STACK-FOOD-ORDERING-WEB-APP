@@ -41,14 +41,16 @@ const AdminDashboard = () => {
 
   // Handle deleting a food item
   const handleDeleteFood = async (foodId) => {
-    try {
-     const response = await axios.delete(`${import.meta.env.VITE_API_URL}/api/food/${foodId}`); // Correct API endpoint
-      alert(response.data.message);
-      fetchFoods(); // Refresh the food items list after deletion
-    } catch (error) {
-      console.error("Error deleting food item", error);
-    }
-  };
+  console.log("Deleting Food ID:", foodId); // 👈 Add this
+  try {
+    const response = await axios.delete(`${import.meta.env.VITE_API_URL}/api/deleteFood/${foodId}`);
+    alert(response.data.message);
+    fetchFoods();
+  } catch (error) {
+    console.error("Error deleting food item", error.response?.data || error.message); // 👈 Improved error logging
+  }
+};
+
 
   // Handle editing a food item
   const handleEditFood = (food) => {
@@ -60,7 +62,7 @@ const AdminDashboard = () => {
   const handleUpdateFood = async (e) => {
     e.preventDefault();
     try {
-     const response = await axios.put(`${import.meta.env.VITE_API_URL}/api/food/${editingFood._id}`, newFood); // Correct API endpoint
+     const response = await axios.put(`${import.meta.env.VITE_API_URL}/api/updateFood/${editingFood._id}`, newFood); // Correct API endpoint
       alert(response.data.message);
       fetchFoods(); // Refresh the food items list after updating
       setEditingFood(null);

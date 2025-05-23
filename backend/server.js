@@ -11,7 +11,7 @@ const authRoutes = require("./routes/auth");
 const app = express();
 const server = http.createServer(app);
 
-// ✅ Setup allowed origins
+// ✅ Allowed Origins for CORS
 const allowedOrigins = [
   process.env.FRONTEND_URL_LOCAL,
   process.env.FRONTEND_URL_ALT,
@@ -20,7 +20,7 @@ const allowedOrigins = [
 
 console.log("✅ Allowed Origins:", allowedOrigins);
 
-// ✅ CORS Middleware
+// ✅ Middlewares
 app.use(cors({
   origin: function (origin, callback) {
     console.log("🌐 Request Origin:", origin);
@@ -34,19 +34,23 @@ app.use(cors({
   credentials: true,
 }));
 
-// ✅ Express Middlewares
-app.use("/uploads", express.static("uploads"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+app.use("/uploads", express.static("uploads"));
 
 // ✅ MongoDB Connection
 mongodb();
 
-// ✅ API Routes
-app.use("/api", authRoutes); // e.g., /api/login
+// ✅ Root Route (Health Check)
+app.get("/", (req, res) => {
+  res.send("✅ API is running.");
+});
 
-// ✅ Socket.io Setup
+// ✅ API Routes
+app.use("/api", authRoutes);
+
+// ✅ Socket.IO Setup
 const io = new Server(server, {
   cors: {
     origin: allowedOrigins,
@@ -59,7 +63,7 @@ io.on("connection", (socket) => {
   console.log("🔌 Socket Connected:", socket.id);
 
   socket.on("updateLocation", ({ deliveryPersonId, lat, lng }) => {
-    console.log(`📍 ${deliveryPersonId}: ${lat}, ${lng}`);
+    console.log(`📍 Location Update from ${deliveryPersonId}: ${lat}, ${lng}`);
     io.emit("locationUpdate", { deliveryPersonId, lat, lng });
   });
 
@@ -73,11 +77,12 @@ app.use((err, req, res, next) => {
   if (err.message && err.message.includes("CORS")) {
     return res.status(403).json({ error: err.message });
   }
+
   console.error("❌ Server Error:", err);
   res.status(500).json({ error: "Server error occurred" });
 });
 
-// ✅ Start the Server
+// ✅ Start Server
 const PORT = process.env.PORT || 3101;
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Server running at http://0.0.0.0:${PORT}`);

@@ -398,6 +398,23 @@ const adminAnalytics=async(req,res) => {
     res.status(500).json({ message: 'Error fetching analytics.' });
   }
 }
+const deleteFood = async (req, res) => {
+  try {
+    await Food.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Food item deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Error deleting food item', error: err.message });
+  }
+};
+const updateFood = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updatedFood = await Food.findByIdAndUpdate(id, req.body, { new: true });
+    res.json(updatedFood);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
 
 
 
@@ -406,4 +423,7 @@ const adminAnalytics=async(req,res) => {
 
 
 
-module.exports = {review,adminAnalytics,addFavorites, signup, login, addFood, addBulk, getFood, order, getOrder,deleteOrder,validateSignup, validateLogin,createOrder,verifyPayment ,getPayments};
+
+
+
+module.exports = {review,adminAnalytics,addFavorites, signup, login, addFood, addBulk, getFood, order, getOrder,deleteOrder,validateSignup, validateLogin,createOrder,verifyPayment ,getPayments,deleteFood,updateFood};
