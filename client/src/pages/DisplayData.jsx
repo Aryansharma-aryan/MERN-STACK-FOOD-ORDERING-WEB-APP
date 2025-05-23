@@ -7,16 +7,16 @@ const DisplayData = ({ setCart = () => {} }) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const API_URL = import.meta.env.VITE_API_URL; // Ensure this is set correctly in your environment
-
+        const API_URL = import.meta.env.VITE_API_URL;
         const response = await fetch(`${API_URL}/api/food`, {
-          mode: "cors",            // Added mode: cors
-          credentials: "include",  // Added credentials: include (optional)
+          mode: "cors",
+          credentials: "include",
         });
 
         if (!response.ok) {
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
+
         const data = await response.json();
         const updatedData = data.map((item) => ({
           ...item,
@@ -160,7 +160,7 @@ const DisplayData = ({ setCart = () => {} }) => {
         <div className="row">
           {filteredFood.length > 0 ? (
             filteredFood.map((food, index) => (
-              <div className="col-md-4 mb-4" key={food._id}>
+              <div className="col-12 col-sm-6 col-md-4 mb-4" key={food._id}>
                 <div
                   className="card shadow-lg"
                   style={{ width: "100%", borderRadius: "15px" }}
@@ -226,8 +226,8 @@ const DisplayData = ({ setCart = () => {} }) => {
                             {
                               method: "POST",
                               headers: { "Content-Type": "application/json" },
-                              mode: "cors",           // Added mode: cors
-                              credentials: "include", // Added credentials: include (optional)
+                              mode: "cors",
+                              credentials: "include",
                               body: JSON.stringify({ name, rating, comment }),
                             }
                           );
