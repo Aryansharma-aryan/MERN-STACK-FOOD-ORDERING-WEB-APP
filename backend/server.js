@@ -32,7 +32,9 @@ app.use(cors({
     }
   },
   credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"], // explicitly allow all methods you want
 }));
+
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

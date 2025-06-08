@@ -19,7 +19,9 @@ const AdminDashboard = () => {
   // Fetch food items from the backend
   const fetchFoods = async () => {
     try {
-     const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/food`); // Correct API endpoint
+      const response = await axios.get(
+        "https://mern-stack-food-ordering-web-app-2.onrender.com/api/food"
+      );
       setFoods(response.data);
     } catch (error) {
       console.error("Error fetching food items", error);
@@ -30,10 +32,13 @@ const AdminDashboard = () => {
   const handleAddFood = async (e) => {
     e.preventDefault();
     try {
-     const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/addFood`, newFood); // Correct API endpoint
+      const response = await axios.post(
+        "https://mern-stack-food-ordering-web-app-2.onrender.com/api/addFood",
+        newFood
+      );
       alert(response.data.message);
-      fetchFoods(); // Refresh the food items list after adding
-      setNewFood({ name: "", price: "", description: "", image: "" }); // Reset form fields
+      fetchFoods(); // Refresh list after adding
+      setNewFood({ name: "", price: "", description: "", image: "" });
     } catch (error) {
       console.error("Error adding food item", error);
     }
@@ -41,32 +46,44 @@ const AdminDashboard = () => {
 
   // Handle deleting a food item
   const handleDeleteFood = async (foodId) => {
-  console.log("Deleting Food ID:", foodId); // 👈 Add this
-  try {
-    const response = await axios.delete(`${import.meta.env.VITE_API_URL}/api/deleteFood/${foodId}`);
-    alert(response.data.message);
-    fetchFoods();
-  } catch (error) {
-    console.error("Error deleting food item", error.response?.data || error.message); // 👈 Improved error logging
-  }
-};
-
+    console.log("Deleting Food ID:", foodId);
+    try {
+      const response = await axios.delete(
+        `https://mern-stack-food-ordering-web-app-2.onrender.com/api/deleteFood/${foodId}`
+      );
+      alert(response.data.message);
+      fetchFoods();
+    } catch (error) {
+      console.error(
+        "Error deleting food item",
+        error.response?.data || error.message
+      );
+    }
+  };
 
   // Handle editing a food item
   const handleEditFood = (food) => {
     setEditingFood(food);
-    setNewFood(food); // Populate form with the current food's data
+    setNewFood({
+      name: food.name || "",
+      price: food.price || "",
+      description: food.description || "",
+      image: food.image || "",
+    }); // populate form with current data
   };
 
   // Handle updating food item
   const handleUpdateFood = async (e) => {
     e.preventDefault();
     try {
-     const response = await axios.put(`${import.meta.env.VITE_API_URL}/api/updateFood/${editingFood._id}`, newFood); // Correct API endpoint
+      const response = await axios.put(
+        `https://mern-stack-food-ordering-web-app-2.onrender.com/api/updateFood/${editingFood._id}`,
+        newFood
+      );
       alert(response.data.message);
-      fetchFoods(); // Refresh the food items list after updating
+      fetchFoods();
       setEditingFood(null);
-      setNewFood({ name: "", price: "", description: "", image: "" }); // Reset form fields
+      setNewFood({ name: "", price: "", description: "", image: "" });
     } catch (error) {
       console.error("Error updating food item", error);
     }
@@ -100,7 +117,9 @@ const AdminDashboard = () => {
             className="form-control mb-2"
             placeholder="Description"
             value={newFood.description}
-            onChange={(e) => setNewFood({ ...newFood, description: e.target.value })}
+            onChange={(e) =>
+              setNewFood({ ...newFood, description: e.target.value })
+            }
             required
           />
           <input
@@ -136,8 +155,12 @@ const AdminDashboard = () => {
           <li key={food._id} className="list-group-item">
             <div className="d-flex justify-content-between align-items-center">
               <div>
-                <img src={food.image || "https://via.placeholder.com/50"} alt={food.name} width="50" />
-                <strong>{food.name}</strong> - ${food.price}
+                <img
+                  src={food.image || "https://via.placeholder.com/50"}
+                  alt={food.name}
+                  width="50"
+                />
+                <strong> {food.name}</strong> - ${food.price}
               </div>
               <div>
                 <button
