@@ -12,7 +12,7 @@ const app = express();
 const server = http.createServer(app);
 
 const allowedOrigins = [
-  "http://localhost:5174",
+  "http://localhost:5173",
   "https://mern-stack-food-ordering-web-9xes0pm6f.vercel.app"
 ];
 
