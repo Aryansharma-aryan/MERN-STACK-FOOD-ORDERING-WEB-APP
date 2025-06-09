@@ -472,4 +472,4 @@ const updateFood = async (req, res) => {
 
 
 
-module.exports = {review,adminAnalytics,addFavorites, signup, login, addFood, addBulk, getFood, order, getOrder,deleteOrder,validateSignup, validateLogin,createOrder,verifyPayment ,getPayments,deleteFood,updateFood};
+module.exports = {review,adminAnalytics,addFavorites, signup, login, addFood, addBulk, getFood, order, getOrder,deleteOrder,createOrder,verifyPayment ,getPayments,deleteFood,updateFood};
