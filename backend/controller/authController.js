@@ -59,15 +59,19 @@ const signup = async (req, res) => {
     // 5. Create new user
     const newUser = new User({ name, email, password: hashedPassword, role });
     await newUser.save();
+// ✅ 6. (Optional) Create admin user only if not exists
+const adminEmail = 'arsharma2951@gmail.com';
+const existingAdmin = await User.findOne({ email: adminEmail });
 
-    // 6. Create an admin user (??)
-    const adminUser = new User({
-      name: 'Aryan Sharma',
-      email: 'arsharma2951@gmail.com',       // << Problem: This is NOT a valid email
-      password: hashedPassword,
-      role: 'admin',
-    });
-    await adminUser.save();
+if (!existingAdmin) {
+  const adminUser = new User({
+    name: 'Aryan Sharma',
+    email: adminEmail,
+    password: hashedPassword, // ideally different password for admin
+    role: 'admin',
+  });
+  await adminUser.save();
+}
 
     // 7. Create JWT token
     const token = jwt.sign(
