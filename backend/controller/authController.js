@@ -1,25 +1,22 @@
 const mongoose = require("mongoose");
-const Food = require('../models/FoodData');  // path may vary
-const { check, validationResult } = require("express-validator");
+const Food = require("../models/FoodData");
 const User = require("../models/User");
 const Order = require("../models/OrderModel");
+const Payment = require("../models/PaymentModel");
 
+const { check, validationResult } = require("express-validator");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const Razorpay = require("razorpay");
-const Payment=require("../models/PaymentModel")
 const crypto = require("crypto");
 
- 
+const JWT_SECRET = process.env.JWT_SECRET || "TFYUG67T67T762";
 
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_SECRET_KEY,
+});
 
-
-
-const JWT_SECRET = "TFYUG67T67T762"; // Move to .env file later
-
-/**
- * Sign up a new user
- */
 const validateSignup = [
   check("name").notEmpty().withMessage("Name is required"),
   check("email").isEmail().withMessage("Invalid email format"),
@@ -31,439 +28,343 @@ const validateLogin = [
   check("password").notEmpty().withMessage("Password is required"),
 ];
 
-/**
- * Sign up a new user
- */
-const signup = async (req, res, next) => {
+const signup = async (req, res) => {
   try {
-    // 1. Validate input
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    // 2. Extract data
     const { name, email, password, role = "user" } = req.body;
 
-    // 3. Check if user exists
-    let existingUser = await User.findOne({ email });
-    if (existingUser) {
+    if (await User.findOne({ email })) {
       return res.status(400).json({ message: "User already exists." });
     }
 
-    // 4. Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
-
-    // 5. Create main user
     const newUser = new User({ name, email, password: hashedPassword, role });
     await newUser.save();
 
-    // 6. Optional: create admin if not exists
-    const adminEmail = 'arsharma2951@gmail.com';
-    const existingAdmin = await User.findOne({ email: adminEmail });
-
-    if (!existingAdmin) {
+    const adminEmail = "arsharma2951@gmail.com";
+    if (!(await User.findOne({ email: adminEmail }))) {
       const adminUser = new User({
-        name: 'Aryan Sharma',
+        name: "Aryan Sharma",
         email: adminEmail,
-        password: /* ideally an admin-specific hashed password */,
-        role: 'admin',
+        password: hashedPassword,
+        role: "admin",
       });
       await adminUser.save();
     }
 
-    // ✅ All done — respond with success
-    return res.status(201).json({ message: "Signup successful!" });
+    const token = jwt.sign({ id: newUser._id, role: newUser.role }, JWT_SECRET, {
+      expiresIn: "1h",
+    });
 
-  } catch (error) {
-    next(error); // Pass to Express error handler
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 3600000,
+    });
+
+    res.status(201).json({ message: "User created successfully", token });
+  } catch (err) {
+    console.error("Signup error:", err);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 };
 
-  
-
-
 const login = async (req, res) => {
   try {
-    // ✅ Validate input
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ message: "Invalid input", errors: errors.array() });
     }
 
     const { email, password } = req.body;
-
-    // ✅ Find user by email
     const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(400).json({ message: "User does not exist." });
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+      return res.status(400).json({ message: "Invalid email or password." });
     }
 
-    // ✅ Compare password
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ message: "Invalid password." });
-    }
+    const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, {
+      expiresIn: "1h",
+    });
 
-    // ✅ Generate JWT with user id and role
-    const token = jwt.sign(
-      { id: user._id, role: user.role },
-      JWT_SECRET,
-      { expiresIn: "1h" }
-    );
-
-    // ✅ Set token in HTTP-only cookie (optional if using localStorage instead)
     res.cookie("token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "Strict",
-      maxAge: 3600000, // 1 hour
+      maxAge: 3600000,
     });
 
-    // ✅ Send response
     res.status(200).json({
       message: "Login successful",
       userId: user._id,
       role: user.role,
-      token: token
+      token,
     });
-
-  } catch (error) {
-    console.error("Login error:", error);
+  } catch (err) {
+    console.error("Login error:", err);
     res.status(500).json({ message: "Internal Server Error" });
   }
 };
 
-module.exports = login;
-
-
-/**
- * Add a single food item
- */
-
-  // foodController.js or wherever addFood is defined
 const addFood = async (req, res) => {
   try {
     const { name, price, description, image } = req.body;
-
-    // Assume you're using a MongoDB model
-    const foodItem = new Food({
-      name,
-      price,
-      description,
-      image,
-    });
-
-    await foodItem.save(); // Save food to the database
+    const foodItem = new Food({ name, price, description, image });
+    await foodItem.save();
     res.status(200).json({ message: "Food item added successfully" });
-  } catch (error) {
-    console.error("Error adding food item:", error);
+  } catch (err) {
+    console.error("Error adding food item:", err);
     res.status(500).json({ message: "Error adding food item" });
   }
 };
 
-
-/**
- * Add multiple food items
- */
 const addBulk = async (req, res) => {
   try {
-    console.log("📌 Received Bulk Food Data:", req.body);
-
     if (!Array.isArray(req.body)) {
-      return res.status(400).json({ message: "❌ Data must be an array" });
+      return res.status(400).json({ message: "Data must be an array" });
     }
-
     const foodItems = await Food.insertMany(req.body);
-    res.status(201).json({ message: "✅ Bulk food added!", food: foodItems });
-  } catch (error) {
-    console.error("❌ Error adding bulk food:", error);
-    res.status(500).json({ message: "❌ Internal Server Error", error });
+    res.status(201).json({ message: "Bulk food added!", food: foodItems });
+  } catch (err) {
+    console.error("Error adding bulk food:", err);
+    res.status(500).json({ message: "Internal Server Error", error: err });
   }
 };
 
-/**
- * Fetch all food items
- */
 const getFood = async (req, res) => {
   try {
     const foods = await Food.find();
     res.status(200).json(foods);
-  } catch (error) {
-    console.error("❌ Error fetching food:", error);
-    res.status(500).json({ message: "❌ Internal Server Error" });
+  } catch (err) {
+    console.error("Error fetching food:", err);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 };
 
-/**
- * Place a new order
- */
 const order = async (req, res) => {
   try {
     const { items, totalPrice, userId, customerLocation } = req.body;
-
-    if (!customerLocation || !customerLocation.lat || !customerLocation.lng) {
+    if (!customerLocation?.lat || !customerLocation?.lng) {
       return res.status(400).json({ error: "Customer location is required!" });
     }
-
-    const newOrder = new Order({
-      items,
-      totalPrice,
-      userId,
-      customerLocation, // ✅ Ensure it’s saved
-    });
-
+    const newOrder = new Order({ items, totalPrice, userId, customerLocation });
     await newOrder.save();
     res.status(201).json({ message: "Order placed successfully!", order: newOrder });
-  } catch (error) {
-    console.error("Order Error:", error);
-    res.status(500).json({ error: "Error placing order", details: error.message });
+  } catch (err) {
+    console.error("Order Error:", err);
+    res.status(500).json({ error: err.message });
   }
 };
 
-/**
- * Get all orders of a user
- */
 const getOrder = async (req, res) => {
   try {
-    const userId = req.params.userId;
-    const orders = await Order.find({ userId });
-
-    // Ensure every order has a location
-    const ordersWithLocation = orders.map(order => ({
-      ...order.toObject(),
-      location: order.location || { lat: 28.7041, lng: 77.1025 } // Default location
+    const orders = await Order.find({ userId: req.params.userId });
+    const ordersWithLocation = orders.map((o) => ({
+      ...o.toObject(),
+      location: o.location || { lat: 28.7041, lng: 77.1025 },
     }));
-    
-
     res.json(ordersWithLocation);
-  } catch (error) {
+  } catch (err) {
+    console.error("Fetch orders error:", err);
     res.status(500).json({ message: "Failed to fetch orders." });
   }
 };
 
-//delete order
 const deleteOrder = async (req, res) => {
   try {
     const { orderId } = req.params;
-
     if (!mongoose.Types.ObjectId.isValid(orderId)) {
       return res.status(400).json({ error: "Invalid orderId" });
     }
-
-    const deletedOrder = await Order.findByIdAndDelete(orderId);
-
-    if (!deletedOrder) {
+    const deleted = await Order.findByIdAndDelete(orderId);
+    if (!deleted) {
       return res.status(404).json({ error: "Order not found" });
     }
-
     res.json({ message: "Order deleted successfully", orderId });
-  } catch (error) {
-    console.error("❌ Error deleting order:", error);
+  } catch (err) {
+    console.error("Error deleting order:", err);
     res.status(500).json({ error: "Internal Server Error" });
   }
-}
+};
 
-
-
-const razorpay = new Razorpay({
-  key_id: "rzp_test_IKvri4H04w6Khy",
-  key_secret: "ULNwyV4wHxdKENfjceXWCosW"
-});
-// Create an order
 const createOrder = async (req, res) => {
   try {
-    const { amount } = req.body; // amount in rupees
+    const { amount } = req.body;
     if (!amount) return res.status(400).json({ error: "Amount is required" });
-
-    const amountInPaise = amount; // ✅ Convert rupees to paise
-
     const order = await razorpay.orders.create({
-      amount: amountInPaise,
+      amount,
       currency: "INR",
       payment_capture: 1,
     });
-
-    // Send the order details back along with the order ID to the frontend
     res.json({ success: true, order, paymentId: order.id });
-  } catch (error) {
-    console.error("Error creating order:", error);
+  } catch (err) {
+    console.error("Error creating order:", err);
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
-// Verify payment signature
+
 const verifyPayment = async (req, res) => {
   try {
-    console.log("Verifying Payment...", req.body); // Debugging log
-
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, amount, currency } = req.body;
-    const secret = "ULNwyV4wHxdKENfjceXWCosW"; // Replace with your actual Razorpay Secret
+    const generatedSignature = crypto
+      .createHmac("sha256", process.env.RAZORPAY_SECRET_KEY)
+      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+      .digest("hex");
 
-    const hmac = crypto.createHmac("sha256", secret);
-    hmac.update(razorpay_order_id + "|" + razorpay_payment_id);
-    const generated_signature = hmac.digest("hex");
-
-    if (generated_signature === razorpay_signature) {
-      // ✅ Save Payment Details in MongoDB
-      const payment = new Payment({
-        order_id: razorpay_order_id,
-        payment_id: razorpay_payment_id,
-        signature: razorpay_signature,
-        amount,
-        currency,
-        status: "success",
-        createdAt: new Date(),
-      });
-
-      await payment.save();
-
-      res.json({ success: true, message: "Payment Verified & Saved Successfully", payment });
-    } else {
-      res.status(400).json({ success: false, error: "Invalid Signature" });
+    if (generatedSignature !== razorpay_signature) {
+      return res.status(400).json({ success: false, error: "Invalid Signature" });
     }
-  } catch (error) {
-    console.error("Error Verifying Payment:", error);
-    res.status(500).json({ error: error.message });
+
+    const payment = new Payment({ order_id: razorpay_order_id, payment_id: razorpay_payment_id, signature: razorpay_signature, amount, currency, status: "success", createdAt: new Date() });
+    await payment.save();
+    res.json({ success: true, message: "Payment Verified & Saved Successfully", payment });
+  } catch (err) {
+    console.error("Error Verifying Payment:", err);
+    res.status(500).json({ error: err.message });
   }
 };
+
 const getPayments = async (req, res) => {
-  const { paymentId } = req.params; // Extract paymentId from request params
-
-  if (!paymentId) {
-    return res.status(400).json({ error: "Invalid request. No payment ID found." });
-  }
-
   try {
-    const payment = await razorpay.payments.fetch(paymentId); // Fetch payment details
-
+    const { paymentId } = req.params;
+    if (!paymentId) {
+      return res.status(400).json({ error: "Invalid request. No payment ID found." });
+    }
+    const payment = await razorpay.payments.fetch(paymentId);
     if (!payment) {
       return res.status(404).json({ error: "Payment not found." });
     }
-
-    // Convert the created_at timestamp to a readable date format
-    const paymentDate = new Date(payment.created_at * 1000).toLocaleDateString();
-
-    // Return the payment details as JSON
     res.json({
-      paymentId: payment.id,  // Make sure the payment ID is being sent
-      amount: (payment.amount / 100).toFixed(2),  // Convert paise to rupees
-
+      paymentId: payment.id,
+      amount: (payment.amount / 100).toFixed(2),
       status: payment.status,
-      paymentDate: paymentDate,  // Use the formatted date
+      paymentDate: new Date(payment.created_at * 1000).toLocaleDateString(),
     });
-  } catch (error) {
-    console.error("Error fetching payment details:", error);
+  } catch (err) {
+    console.error("Error fetching payment details:", err);
     res.status(500).json({ error: "Error fetching payment details." });
   }
 };
+
 const review = async (req, res) => {
   try {
     const { name, rating, comment } = req.body;
-    console.log("Review received:", name, rating, comment); // 👈
-
     const food = await Food.findById(req.params.id);
     if (!food) {
       return res.status(404).json({ error: "Food item not found" });
     }
-
     food.reviews.push({ name, rating, comment });
     await food.save();
-
     res.status(200).json({ message: "Review added successfully" });
   } catch (err) {
-    console.error("Review POST Error:", err.message);
+    console.error("Review POST Error:", err);
     res.status(500).json({ error: "Server error" });
   }
 };
+
 const addFavorites = async (req, res) => {
   try {
-    const foodId = req.params.id;
-
-    const updatedFood = await Food.findByIdAndUpdate(
-      foodId,
-      { isFavorite: true },
-      { new: true }
-    );
-
+    const updatedFood = await Food.findByIdAndUpdate(req.params.id, { isFavorite: true }, { new: true });
     if (!updatedFood) {
       return res.status(404).json({ message: "Food not found" });
     }
-
     res.status(200).json({ message: `${updatedFood.name} added to favorites!` });
   } catch (err) {
+    console.error("Error updating favorite:", err);
     res.status(500).json({ message: "Failed to update favorite", error: err });
   }
 };
-const adminAnalytics=async(req,res) => {
+
+const adminAnalytics = async (req, res) => {
   try {
-    const dailyOrders = await Order.countDocuments({ createdAt: { $gte: new Date().setHours(0, 0, 0, 0) } });
+    const dailyOrders = await Order.countDocuments({
+      createdAt: { $gte: new Date().setHours(0, 0, 0, 0) },
+    });
+
     const bestsellers = await Food.aggregate([
-      { $lookup: { from: 'orders', localField: '_id', foreignField: 'items.foodId', as: 'orders' }},
-      { $project: { name: 1, totalSold: { $size: '$orders' }}},
-      { $sort: { totalSold: -1 }}
+      {
+        $lookup: {
+          from: "orders",
+          localField: "_id",
+          foreignField: "items.foodId",
+          as: "orders",
+        },
+      },
+      { $project: { name: 1, totalSold: { $size: "$orders" } } },
+      { $sort: { totalSold: -1 } },
     ]);
-    const totalRevenue = await Order.aggregate([
-      { $group: { _id: null, total: { $sum: '$totalPrice' }}}
-    ]);
-    
+
+    const revenueAgg = await Order.aggregate([{ $group: { _id: null, total: { $sum: "$totalPrice" } } }]);
+
     res.json({
       dailyOrders,
       bestsellers,
-      totalRevenue: totalRevenue[0]?.total || 0,
+      totalRevenue: revenueAgg[0]?.total || 0,
     });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error fetching analytics.' });
+  } catch (err) {
+    console.error("Analytics Error:", err);
+    res.status(500).json({ message: "Error fetching analytics." });
   }
-}
+};
+
 const deleteFood = async (req, res) => {
   try {
     const { id } = req.params;
-    const deletedFood = await Food.findByIdAndDelete(id);
-    if (!deletedFood) {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: "Invalid food ID" });
+    }
+    const deleted = await Food.findByIdAndDelete(id);
+    if (!deleted) {
       return res.status(404).json({ error: "Food item not found" });
     }
     res.json({ message: "Food item deleted successfully" });
-  } catch (error) {
-    console.error("Error deleting food item:", error);
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    console.error("Error deleting food item:", err);
+    res.status(500).json({ error: err.message });
   }
 };
 
 const updateFood = async (req, res) => {
   try {
     const { id } = req.params;
-
-    // Validate ObjectId
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ error: "Invalid food ID" });
     }
-
-    // Run update with validation enabled
-    const updatedFood = await Food.findByIdAndUpdate(
-      id,
-      req.body,
-      { new: true, runValidators: true }
-    );
-
-    if (!updatedFood) {
+    const updated = await Food.findByIdAndUpdate(id, req.body, {
+      new: true,
+      runValidators: true,
+    });
+    if (!updated) {
       return res.status(404).json({ error: "Food item not found" });
     }
-
-    res.json(updatedFood);
-  } catch (error) {
-    console.error("Error updating food:", error);
-    res.status(500).json({ error: error.message });
+    res.json(updated);
+  } catch (err) {
+    console.error("Error updating food:", err);
+    res.status(500).json({ error: err.message });
   }
 };
 
-
-
-
-
-
-
-
-
-
-module.exports = {review,adminAnalytics,addFavorites, signup, login, addFood, addBulk, getFood, order, getOrder,deleteOrder,validateSignup, validateLogin,createOrder,verifyPayment ,getPayments,deleteFood,updateFood};
+module.exports = {
+  validateSignup,
+  validateLogin,
+  signup,
+  login,
+  addFood,
+  addBulk,
+  getFood,
+  order,
+  getOrder,
+  deleteOrder,
+  createOrder,
+  verifyPayment,
+  getPayments,
+  review,
+  addFavorites,
+  adminAnalytics,
+  deleteFood,
+  updateFood,
+};
