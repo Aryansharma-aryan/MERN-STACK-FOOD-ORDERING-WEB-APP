@@ -1,7 +1,5 @@
 const mongoose = require("mongoose");
 const Food = require('../models/FoodData');  // path may vary
-
-
 const { check, validationResult } = require("express-validator");
 const User = require("../models/User");
 const Order = require("../models/OrderModel");
@@ -36,15 +34,15 @@ const validateLogin = [
 /**
  * Sign up a new user
  */
-const signup = async (req, res) => {
+const signup = async (req, res, next) => {
   try {
-    // 1. Validate input errors
+    // 1. Validate input
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    // 2. Extract data from request
+    // 2. Extract data
     const { name, email, password, role = "user" } = req.body;
 
     // 3. Check if user exists
@@ -56,51 +54,33 @@ const signup = async (req, res) => {
     // 4. Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 5. Create new user
+    // 5. Create main user
     const newUser = new User({ name, email, password: hashedPassword, role });
     await newUser.save();
-// ✅ 6. (Optional) Create admin user only if not exists
-const adminEmail = 'arsharma2951@gmail.com';
-const existingAdmin = await User.findOne({ email: adminEmail });
 
-if (!existingAdmin) {
-  const adminUser = new User({
-    name: 'Aryan Sharma',
-    email: adminEmail,
-    password: hashedPassword, // ideally different password for admin
-    role: 'admin',
-  });
-  await adminUser.save();
-}
-<<<<<<< HEAD
-=======
+    // 6. Optional: create admin if not exists
+    const adminEmail = 'arsharma2951@gmail.com';
+    const existingAdmin = await User.findOne({ email: adminEmail });
 
-    // 7. Create JWT token
-    const token = jwt.sign(
-      { id: newUser._id, role: newUser.role },
-      JWT_SECRET,
-      { expiresIn: "1h" }
-    );
+    if (!existingAdmin) {
+      const adminUser = new User({
+        name: 'Aryan Sharma',
+        email: adminEmail,
+        password: /* ideally an admin-specific hashed password */,
+        role: 'admin',
+      });
+      await adminUser.save();
+    }
 
-    // 8. Send cookie and response
-    res.cookie("token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 3600000,
-    });
-
-    res.status(201).json({ message: "User created successfully", token });
+    // ✅ All done — respond with success
+    return res.status(201).json({ message: "Signup successful!" });
 
   } catch (error) {
-    console.error("Signup error:", error);
-    res.status(500).json({ message: "Internal Server Error" });
+    next(error); // Pass to Express error handler
   }
 };
 
-
-
->>>>>>> fcc65f3be032bb8ba7eaac16a14ba332c8430f88
+  
 
 
 const login = async (req, res) => {
