@@ -22,9 +22,6 @@ const JWT_SECRET = "TFYUG67T67T762"; // Move to .env file later
 /**
  * Sign up a new user
  */
-const bcrypt = require("bcryptjs");
-const { validationResult } = require("express-validator");
-const User = require("../models/User"); // Adjust the path as needed
 
 const signup = async (req, res) => {
   try {
