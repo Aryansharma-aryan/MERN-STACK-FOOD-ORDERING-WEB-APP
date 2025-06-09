@@ -72,6 +72,35 @@ if (!existingAdmin) {
   });
   await adminUser.save();
 }
+<<<<<<< HEAD
+=======
+
+    // 7. Create JWT token
+    const token = jwt.sign(
+      { id: newUser._id, role: newUser.role },
+      JWT_SECRET,
+      { expiresIn: "1h" }
+    );
+
+    // 8. Send cookie and response
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 3600000,
+    });
+
+    res.status(201).json({ message: "User created successfully", token });
+
+  } catch (error) {
+    console.error("Signup error:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+
+
+>>>>>>> fcc65f3be032bb8ba7eaac16a14ba332c8430f88
 
 
 const login = async (req, res) => {
