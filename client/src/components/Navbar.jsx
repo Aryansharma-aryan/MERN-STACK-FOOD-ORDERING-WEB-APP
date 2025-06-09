@@ -56,7 +56,7 @@ const Navbar = ({ cart = [], handleLogout, isAdmin }) => {
           className={`collapse navbar-collapse ${isMenuOpen ? "show" : ""}`}
           id="navbarNav"
         >
-          <ul className="navbar-nav ms-auto align-items-lg-center gap-2 gap-lg-0 flex-column flex-lg-row text-center">
+          <ul className="navbar-nav ms-auto align-items-lg-center flex-column flex-lg-row text-center gap-3">
             {isAuthenticated ? (
               <>
                 <li className="nav-item">

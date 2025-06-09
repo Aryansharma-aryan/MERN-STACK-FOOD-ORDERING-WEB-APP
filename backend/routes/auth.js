@@ -2,14 +2,14 @@ const express = require("express");
 
 
 
-const {signup, login, deleteFood,updateFood,addFood, addBulk, getPayments,getFood, order, getOrder,deleteOrder,validateSignup, validateLogin,createOrder, verifyPayment  } = require("../controller/authController"); 
+const {signup, login, deleteFood,updateFood,addFood, addBulk, getPayments,getFood, order, getOrder,deleteOrder,createOrder, verifyPayment  } = require("../controller/authController"); 
 const {review,adminAnalytics,addFavorites} = require("../controller/authController")
 const router = express.Router();
 const isAdmin=require("../middleware/AdminMiddleware")
 
 // Authentication Routes
-router.post("/signup",validateSignup ,signup);
-router.post("/login",validateLogin, login);
+router.post("/signup" ,signup);
+router.post("/login", login);
 
 // Food Routes
 router.post("/addFood", addFood);

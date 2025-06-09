@@ -11,35 +11,40 @@ const authRoutes = require("./routes/auth");
 const app = express();
 const server = http.createServer(app);
 
-// ✅ Allowed Origins for CORS
 const allowedOrigins = [
-  process.env.FRONTEND_URL_LOCAL,
-  process.env.FRONTEND_URL_ALT,
-  process.env.FRONTEND_URL_VERCEL,
-].filter(Boolean);
+  "http://localhost:5174",
+  "https://mern-stack-food-ordering-web-2pugvbc3i.vercel.app/"
+];
 
-console.log("✅ Allowed Origins:", allowedOrigins);
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  })
+);
 
-// ✅ Middlewares
-
+app.options("*", cors());
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use("/uploads", express.static("uploads"));
 
-// ✅ MongoDB Connection
 mongodb();
 
-// ✅ Root Route (Health Check)
 app.get("/", (req, res) => {
   res.send("✅ API is running.");
 });
 
-// ✅ API Routes
 app.use("/api", authRoutes);
 
-// ✅ Socket.IO Setup
 const io = new Server(server, {
   cors: {
     origin: allowedOrigins,
@@ -61,7 +66,12 @@ io.on("connection", (socket) => {
   });
 });
 
-// ✅ Global Error Handler
+// Catch 404
+app.use((req, res) => {
+  res.status(404).json({ error: "Route not found" });
+});
+
+// Global error handler
 app.use((err, req, res, next) => {
   if (err.message && err.message.includes("CORS")) {
     return res.status(403).json({ error: err.message });
@@ -71,7 +81,6 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: "Server error occurred" });
 });
 
-// ✅ Start Server
 const PORT = process.env.PORT || 3101;
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Server running at http://0.0.0.0:${PORT}`);
