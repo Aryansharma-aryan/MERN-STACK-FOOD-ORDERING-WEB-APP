@@ -21,19 +21,6 @@ const allowedOrigins = [
 console.log("✅ Allowed Origins:", allowedOrigins);
 
 // ✅ Middlewares
-app.use(cors({
-  origin: function (origin, callback) {
-    console.log("🌐 Request Origin:", origin);
-
-    if (!origin || allowedOrigins.includes(origin) || origin.endsWith(".vercel.app")) {
-      callback(null, true);
-    } else {
-      callback(new Error("CORS not allowed for this origin: " + origin));
-    }
-  },
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"], // explicitly allow all methods you want
-}));
 
 
 app.use(express.json());
@@ -57,7 +44,7 @@ const io = new Server(server, {
   cors: {
     origin: allowedOrigins,
     credentials: true,
-    methods: ["GET", "POST","PUT","DELETE"],
+    methods: ["GET", "POST"],
   },
 });
 

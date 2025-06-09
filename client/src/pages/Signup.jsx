@@ -29,6 +29,7 @@ export default function Signup() {
 
       const response = await fetch(`${API_URL}/api/signup`,
         {
+          
           method: "POST",
           credentials: "include", // if you want to send cookies
           mode: "cors",
