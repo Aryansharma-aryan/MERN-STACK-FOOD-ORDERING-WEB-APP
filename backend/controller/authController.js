@@ -1,14 +1,19 @@
 const mongoose = require("mongoose");
+const Food = require('../models/FoodData');  // path may vary
+
 
 const { check, validationResult } = require("express-validator");
 const User = require("../models/User");
 const Order = require("../models/OrderModel");
-const Food = require("../models/FoodData");
+
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const Razorpay = require("razorpay");
 const Payment=require("../models/PaymentModel")
 const crypto = require("crypto");
+
+ 
+
 
 
 
@@ -33,33 +38,45 @@ const validateLogin = [
  */
 const signup = async (req, res) => {
   try {
+    // 1. Validate input errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
 
+    // 2. Extract data from request
     const { name, email, password, role = "user" } = req.body;
 
+    // 3. Check if user exists
     let existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: "User already exists." });
     }
 
+    // 4. Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // 5. Create new user
     const newUser = new User({ name, email, password: hashedPassword, role });
     await newUser.save();
+
+    // 6. Create an admin user (??)
     const adminUser = new User({
       name: 'Aryan Sharma',
-      email: 'arsharma2951',
-      password: hashedPassword, // make sure it's hashed
+      email: 'arsharma2951@gmail.com',       // << Problem: This is NOT a valid email
+      password: hashedPassword,
       role: 'admin',
     });
     await adminUser.save();
-    
 
-    const token = jwt.sign({ id: newUser._id, role: newUser.role }, JWT_SECRET, { expiresIn: "1h" });
+    // 7. Create JWT token
+    const token = jwt.sign(
+      { id: newUser._id, role: newUser.role },
+      JWT_SECRET,
+      { expiresIn: "1h" }
+    );
 
+    // 8. Send cookie and response
     res.cookie("token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -68,6 +85,7 @@ const signup = async (req, res) => {
     });
 
     res.status(201).json({ message: "User created successfully", token });
+
   } catch (error) {
     console.error("Signup error:", error);
     res.status(500).json({ message: "Internal Server Error" });
@@ -75,49 +93,62 @@ const signup = async (req, res) => {
 };
 
 
- 
+
+
+
 const login = async (req, res) => {
   try {
+    // ✅ Validate input
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+      return res.status(400).json({ message: "Invalid input", errors: errors.array() });
     }
 
     const { email, password } = req.body;
 
-    let existingUser = await User.findOne({ email });
-    if (!existingUser) {
+    // ✅ Find user by email
+    const user = await User.findOne({ email });
+    if (!user) {
       return res.status(400).json({ message: "User does not exist." });
     }
 
-    const isMatch = await bcrypt.compare(password, existingUser.password);
+    // ✅ Compare password
+    const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(400).json({ message: "Invalid password." });
     }
 
-    // Create JWT Token with role information
-    const token = jwt.sign({ id: existingUser._id, role: existingUser.role }, JWT_SECRET, { expiresIn: "1h" });
+    // ✅ Generate JWT with user id and role
+    const token = jwt.sign(
+      { id: user._id, role: user.role },
+      JWT_SECRET,
+      { expiresIn: "1h" }
+    );
 
-    // Set the token as a cookie (optional, for secure cookies)
+    // ✅ Set token in HTTP-only cookie (optional if using localStorage instead)
     res.cookie("token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "Strict",
-      maxAge: 3600000,
+      maxAge: 3600000, // 1 hour
     });
 
-    // Send response with role information
+    // ✅ Send response
     res.status(200).json({
-      message: "User logged in successfully",
-      userId: existingUser._id,
-      role: existingUser.role, // Send the role back
-      token: token, // Send the token back if you want to use it on the frontend
+      message: "Login successful",
+      userId: user._id,
+      role: user.role,
+      token: token
     });
+
   } catch (error) {
     console.error("Login error:", error);
     res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
+module.exports = login;
+
 
 /**
  * Add a single food item
@@ -400,22 +431,44 @@ const adminAnalytics=async(req,res) => {
 }
 const deleteFood = async (req, res) => {
   try {
-    await Food.findByIdAndDelete(req.params.id);
-    res.json({ message: 'Food item deleted successfully' });
-  } catch (err) {
-    res.status(500).json({ message: 'Error deleting food item', error: err.message });
-  }
-};
-const updateFood = async (req, res) => {
-  try {
     const { id } = req.params;
-    const updatedFood = await Food.findByIdAndUpdate(id, req.body, { new: true });
-    res.json(updatedFood);
+    const deletedFood = await Food.findByIdAndDelete(id);
+    if (!deletedFood) {
+      return res.status(404).json({ error: "Food item not found" });
+    }
+    res.json({ message: "Food item deleted successfully" });
   } catch (error) {
+    console.error("Error deleting food item:", error);
     res.status(500).json({ error: error.message });
   }
 };
 
+const updateFood = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: "Invalid food ID" });
+    }
+
+    // Run update with validation enabled
+    const updatedFood = await Food.findByIdAndUpdate(
+      id,
+      req.body,
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedFood) {
+      return res.status(404).json({ error: "Food item not found" });
+    }
+
+    res.json(updatedFood);
+  } catch (error) {
+    console.error("Error updating food:", error);
+    res.status(500).json({ error: error.message });
+  }
+};
 
 
 

@@ -49,7 +49,7 @@ const AdminDashboard = () => {
     console.log("Deleting Food ID:", foodId);
     try {
       const response = await axios.delete(
-        `https://mern-stack-food-ordering-web-app-2.onrender.com/api/deleteFood/${foodId}`
+        `http://localhost:3101/api/deleteFood/${foodId}`
       );
       alert(response.data.message);
       fetchFoods();
@@ -77,7 +77,7 @@ const AdminDashboard = () => {
     e.preventDefault();
     try {
       const response = await axios.put(
-        `https://mern-stack-food-ordering-web-app-2.onrender.com/api/updateFood/${editingFood._id}`,
+        `http://localhost:3101/api/updateFood/${editingFood._id}`,
         newFood
       );
       alert(response.data.message);

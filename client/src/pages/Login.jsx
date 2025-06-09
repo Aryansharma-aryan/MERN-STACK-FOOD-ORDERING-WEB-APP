@@ -16,33 +16,35 @@ export default function Login({ handleLogin }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+
     try {
-      const API_URL = import.meta.env.VITE_API_URL; // Ensure this is set correctly in your environment
+      const API_URL = import.meta.env.VITE_API_URL;
+      if (!API_URL) throw new Error("API URL not defined in environment variables!");
 
-const response = await fetch(`${API_URL}/api/login`, {
-    method: "POST",
-      mode: "cors", // very important!
-
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(formData), // Ensure formData is defined and contains the necessary data
-    credentials: "include",
-});
-
+      const response = await fetch(`${API_URL}/api/login`, {
+        method: "POST",
+        mode: "cors",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(formData),
+      });
 
       const data = await response.json();
-      if (!response.ok) throw new Error(data.message || "Login failed! Try again.");
-      if (!data.userId || !data.role) throw new Error("Unexpected response: userId or role missing!");
 
-      // Save user data to localStorage
+      if (!response.ok) throw new Error(data.message || "Login failed! Try again.");
+      if (!data.userId || !data.role || !data.token)
+        throw new Error("Incomplete login response from server.");
+
       localStorage.setItem("authToken", data.token);
       localStorage.setItem("userId", data.userId);
-      localStorage.setItem("isAdmin", data.role === "admin"); // ✅ Store admin flag
+      localStorage.setItem("isAdmin", data.role === "admin");
 
-      handleLogin(); // ✅ Set authentication and admin status
+      handleLogin(); // Update auth context/state
       navigate("/");
 
     } catch (error) {
-      setError(error.message);
+      console.error("Login error:", error.message);
+      setError(error.message || "Login failed!");
     } finally {
       setLoading(false);
     }
@@ -52,7 +54,9 @@ const response = await fetch(`${API_URL}/api/login`, {
     <div className="d-flex justify-content-center align-items-center vh-100" style={{ backgroundColor: "#2C3E50" }}>
       <div className="card p-4 shadow-lg" style={{ width: "350px", borderRadius: "15px", backgroundColor: "#34495E", color: "#fff" }}>
         <h3 className="text-center mb-4">Login</h3>
+        
         {error && <div className="alert alert-danger">{error}</div>}
+
         <form onSubmit={handleSubmit}>
           <div className="mb-3">
             <label className="form-label">Email</label>
@@ -67,6 +71,7 @@ const response = await fetch(`${API_URL}/api/login`, {
               style={{ borderRadius: "10px" }}
             />
           </div>
+
           <div className="mb-3">
             <label className="form-label">Password</label>
             <input
@@ -80,14 +85,23 @@ const response = await fetch(`${API_URL}/api/login`, {
               style={{ borderRadius: "10px" }}
             />
           </div>
+
           <button
             type="submit"
             className="btn w-100 text-white"
             style={{ backgroundColor: "#E67E22", borderRadius: "10px" }}
             disabled={loading}
           >
-            {loading ? "Logging in..." : "Login"}
+            {loading ? (
+              <>
+                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                Logging in...
+              </>
+            ) : (
+              "Login"
+            )}
           </button>
+
           <div className="text-center mt-3">
             <small>
               New user? <Link to="/signup" className="text-warning">Signup</Link>
