@@ -213,7 +213,7 @@ const DisplayData = ({ setCart = () => {} }) => {
                 </p>
               ) : (
                 currentItems.map((food) => (
-              <div className="col-4 mb-4" key={food._id}>
+              <div className="col-12 mb-4" key={food._id}>
 
                     <div
                       className="card shadow-lg"
