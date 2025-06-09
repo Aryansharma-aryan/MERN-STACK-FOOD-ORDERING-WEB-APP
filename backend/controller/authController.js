@@ -6,7 +6,6 @@ const { check, validationResult } = require("express-validator");
 const User = require("../models/User");
 const Order = require("../models/OrderModel");
 
-const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const Razorpay = require("razorpay");
 const Payment=require("../models/PaymentModel")
@@ -22,6 +21,10 @@ const JWT_SECRET = "TFYUG67T67T762"; // Move to .env file later
 /**
  * Sign up a new user
  */
+const bcrypt = require("bcryptjs");
+
+
+
 
 const signup = async (req, res) => {
   try {
@@ -31,62 +34,60 @@ const signup = async (req, res) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    // 2. Extract data from request
+    // 2. Extract data
     const { name, email, password, role = "user" } = req.body;
 
     // 3. Check if user exists
-    let existingUser = await User.findOne({ email });
-    if (existingUser) {
+    if (await User.findOne({ email })) {
       return res.status(400).json({ message: "User already exists." });
     }
 
-    // 4. Hash password
+    // 4. Hash the user's password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 5. Create new user
+    // 5. Create the new user
     const newUser = new User({ name, email, password: hashedPassword, role });
     await newUser.save();
 
-    // ✅ 6. Auto-create admin user if not exists
+    // 6. OPTIONAL: create the admin user once
     const adminEmail = 'arsharma2951@gmail.com';
     const existingAdmin = await User.findOne({ email: adminEmail });
 
     if (!existingAdmin) {
-      const adminHashedPassword = await bcrypt.hash("Admin@123", 10); // safer hardcoded password
+      const adminPass = process.env.ADMIN_PASS || 'SecureAdminPass123';
+      const adminHash = await bcrypt.hash(adminPass, 10);
       const adminUser = new User({
         name: 'Aryan Sharma',
         email: adminEmail,
-        password: adminHashedPassword,
+        password: adminHash,
         role: 'admin',
       });
       await adminUser.save();
+      console.log('✅ Admin account created');
     }
 
-    res.status(201).json({ message: "Signup successful", user: newUser });
+    // 7. Create JWT for new user
+    const token = jwt.sign(
+      { id: newUser._id, role: newUser.role },
+      JWT_SECRET,
+      { expiresIn: "1h" }
+    );
+
+    // 8. Send cookie & response
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 3600000,
+    });
+
+    return res.status(201).json({ message: "User created successfully", token });
 
   } catch (error) {
     console.error("Signup error:", error);
-    res.status(500).json({ message: "Server error during signup" });
+    res.status(500).json({ message: "Internal Server Error" });
   }
 };
-
-module.exports = { signup };
-
-const validateSignup = [
-  check("name").notEmpty().withMessage("Name is required"),
-  check("email").isEmail().withMessage("Invalid email format"),
-  check("password").isLength({ min: 6 }).withMessage("Password must be at least 6 characters long"),
-];
-
-const validateLogin = [
-  check("email").isEmail().withMessage("Invalid email format"),
-  check("password").notEmpty().withMessage("Password is required"),
-];
-
-/**
- * Sign up a new user
- */
-
 
 const login = async (req, res) => {
   try {
