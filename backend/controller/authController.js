@@ -22,20 +22,10 @@ const JWT_SECRET = "TFYUG67T67T762"; // Move to .env file later
 /**
  * Sign up a new user
  */
-const validateSignup = [
-  check("name").notEmpty().withMessage("Name is required"),
-  check("email").isEmail().withMessage("Invalid email format"),
-  check("password").isLength({ min: 6 }).withMessage("Password must be at least 6 characters long"),
-];
+const bcrypt = require("bcryptjs");
+const { validationResult } = require("express-validator");
+const User = require("../models/User"); // Adjust the path as needed
 
-const validateLogin = [
-  check("email").isEmail().withMessage("Invalid email format"),
-  check("password").notEmpty().withMessage("Password is required"),
-];
-
-/**
- * Sign up a new user
- */
 const signup = async (req, res) => {
   try {
     // 1. Validate input errors
@@ -59,19 +49,46 @@ const signup = async (req, res) => {
     // 5. Create new user
     const newUser = new User({ name, email, password: hashedPassword, role });
     await newUser.save();
-// ✅ 6. (Optional) Create admin user only if not exists
-const adminEmail = 'arsharma2951@gmail.com';
-const existingAdmin = await User.findOne({ email: adminEmail });
 
-if (!existingAdmin) {
-  const adminUser = new User({
-    name: 'Aryan Sharma',
-    email: adminEmail,
-    password: hashedPassword, // ideally different password for admin
-    role: 'admin',
-  });
-  await adminUser.save();
-}
+    // ✅ 6. Auto-create admin user if not exists
+    const adminEmail = 'arsharma2951@gmail.com';
+    const existingAdmin = await User.findOne({ email: adminEmail });
+
+    if (!existingAdmin) {
+      const adminHashedPassword = await bcrypt.hash("Admin@123", 10); // safer hardcoded password
+      const adminUser = new User({
+        name: 'Aryan Sharma',
+        email: adminEmail,
+        password: adminHashedPassword,
+        role: 'admin',
+      });
+      await adminUser.save();
+    }
+
+    res.status(201).json({ message: "Signup successful", user: newUser });
+
+  } catch (error) {
+    console.error("Signup error:", error);
+    res.status(500).json({ message: "Server error during signup" });
+  }
+};
+
+module.exports = { signup };
+
+const validateSignup = [
+  check("name").notEmpty().withMessage("Name is required"),
+  check("email").isEmail().withMessage("Invalid email format"),
+  check("password").isLength({ min: 6 }).withMessage("Password must be at least 6 characters long"),
+];
+
+const validateLogin = [
+  check("email").isEmail().withMessage("Invalid email format"),
+  check("password").notEmpty().withMessage("Password is required"),
+];
+
+/**
+ * Sign up a new user
+ */
 
 
 const login = async (req, res) => {
