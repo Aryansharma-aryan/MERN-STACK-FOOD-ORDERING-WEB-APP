@@ -12,21 +12,33 @@ const server = http.createServer(app);
 // 1️⃣ Priority CORS + preflight
 const allowedOrigins = [
   /^https?:\/\/localhost(:\d+)?$/,
-  "https://mern-stack-food-ordering-web-app-2pugvbc3i.vercel.app"
+  "https://mern-stack-food-ordering-web-app-t9cgl0clv.vercel.app",
+  "https://mern-stack-food-ordering-web-app-2.onrender.com"
 ];
+
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  if (origin && allowedOrigins.some(o => (o instanceof RegExp ? o.test(origin) : o === origin))) {
+  if (origin && allowedOrigins.some(o => o instanceof RegExp ? o.test(origin) : origin === o)) {
     res.setHeader("Access-Control-Allow-Origin", origin);
     res.setHeader("Vary", "Origin");
     res.setHeader("Access-Control-Allow-Credentials", "true");
-    res.setHeader("Access-Control-Allow-Methods", "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
+    res.setHeader(
+      "Access-Control-Allow-Methods",
+      "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS"
+    );
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      "Content-Type, Authorization, X-Requested-With"
+    );
     res.setHeader("Access-Control-Max-Age", "7200");
   }
   if (req.method === "OPTIONS") return res.sendStatus(204);
   next();
 });
+
+// Health check before routes
+app.get("/healthz", (_req, res) => res.sendStatus(204));
+
 
 // 2️⃣ Health-check
 app.get("/healthz", (req, res) => res.sendStatus(204));
