@@ -12,14 +12,17 @@ const server = http.createServer(app);
 // 1️⃣ Priority CORS + preflight
 const allowedOrigins = [
   /^https?:\/\/localhost(:\d+)?$/,
-  "https://mern-stack-food-ordering-web-j1whf7dyv.vercel.app/"
-  ,
+  "https://mern-stack-food-ordering-web-j1whf7dyv.vercel.app",
   "https://mern-stack-food-ordering-web-app-2.onrender.com"
 ];
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  if (origin && allowedOrigins.some(o => o instanceof RegExp ? o.test(origin) : origin === o)) {
+  console.log("🧭 Incoming Origin:", origin);  // 🔍 log here
+
+  if (origin && allowedOrigins.some(o =>
+    o instanceof RegExp ? o.test(origin) : o === origin
+  )) {
     res.setHeader("Access-Control-Allow-Origin", origin);
     res.setHeader("Vary", "Origin");
     res.setHeader("Access-Control-Allow-Credentials", "true");
@@ -36,6 +39,7 @@ app.use((req, res, next) => {
   if (req.method === "OPTIONS") return res.sendStatus(204);
   next();
 });
+
 
 // Health check before routes
 app.get("/healthz", (_req, res) => res.sendStatus(204));
