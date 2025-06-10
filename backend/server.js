@@ -12,7 +12,8 @@ const server = http.createServer(app);
 // 1️⃣ Priority CORS + preflight
 const allowedOrigins = [
   /^https?:\/\/localhost(:\d+)?$/,
-  "https://mern-stack-food-ordering-web-app-t9cgl0clv.vercel.app",
+  "https://mern-stack-food-ordering-web-j1whf7dyv.vercel.app/"
+  ,
   "https://mern-stack-food-ordering-web-app-2.onrender.com"
 ];
 
