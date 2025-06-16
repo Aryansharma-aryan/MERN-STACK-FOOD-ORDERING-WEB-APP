@@ -18,9 +18,8 @@ export default function OrderPage() {
       try {
         const userId = localStorage.getItem("userId");
         if (!userId) throw new Error("User ID not found. Please log in.");
-const API_URL = import.meta.env.VITE_API_URL; // Ensure this is set correctly in your environment
 
-const response = await axios.get(`${API_URL}/api/orders/${userId}`, {
+const response = await axios.get(`http://localhost:3102/api/orders/${userId}`, {
     headers: { "Content-Type": "application/json" },
 });
 
@@ -51,7 +50,7 @@ const response = await axios.get(`${API_URL}/api/orders/${userId}`, {
 
   try {
     // Access the API URL from your .env file
-    await axios.delete(`${import.meta.env.VITE_API_URL}/orders/${orderId}`);
+    await axios.delete(`http://localhost:3102/orders/${orderId}`);
     setOrders((prevOrders) => prevOrders.filter((order) => order._id !== orderId));
   } catch (err) {
     console.error("Error deleting order:", err);

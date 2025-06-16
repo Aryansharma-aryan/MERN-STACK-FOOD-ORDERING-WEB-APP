@@ -18,10 +18,8 @@ export default function Login({ handleLogin }) {
     setLoading(true);
 
     try {
-      const API_URL = import.meta.env.VITE_API_URL;
-      if (!API_URL) throw new Error("API URL not defined in environment variables!");
-
-      const response = await fetch(`${API_URL}/api/login`, {
+      
+      const response = await fetch(`http://localhost:3102/api/login`, {
         method: "POST",
         mode: "cors",
         headers: { "Content-Type": "application/json" },

@@ -11,9 +11,6 @@ const Razorpay = require("razorpay");
 const Payment=require("../models/PaymentModel")
 const crypto = require("crypto");
 
- 
-
-
 
 
 const JWT_SECRET = "TFYUG67T67T762"; // Move to .env file later
@@ -89,7 +86,7 @@ const signup = async (req, res) => {
   }
 };
 
-const login = async (req, res) => {
+const loginUser = async (req, res) => {
   try {
     // ✅ Validate input
     const errors = validationResult(req);
@@ -140,7 +137,7 @@ const login = async (req, res) => {
   }
 };
 
-module.exports = login;
+
 
 
 /**
@@ -472,4 +469,4 @@ const updateFood = async (req, res) => {
 
 
 
-module.exports = {review,adminAnalytics,addFavorites, signup, login, addFood, addBulk, getFood, order, getOrder,deleteOrder,createOrder,verifyPayment ,getPayments,deleteFood,updateFood};
+module.exports = {review,adminAnalytics,addFavorites, signup, loginUser, addFood, addBulk, getFood, order, getOrder,deleteOrder,createOrder,verifyPayment ,getPayments,deleteFood,updateFood};

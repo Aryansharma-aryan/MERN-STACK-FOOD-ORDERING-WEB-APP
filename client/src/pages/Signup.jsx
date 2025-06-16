@@ -24,10 +24,8 @@ export default function Signup() {
     setError("");
 
     try {
-      const API_URL = import.meta.env.VITE_API_URL;
-      if (!API_URL) throw new Error("API URL not defined in environment variables!");
-
-      const response = await fetch(`${API_URL}/api/signup`,
+     
+      const response = await fetch(`http://localhost:3102/api/signup`,
         {
           
           method: "POST",

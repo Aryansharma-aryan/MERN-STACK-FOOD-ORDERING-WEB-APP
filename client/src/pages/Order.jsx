@@ -13,9 +13,9 @@ export default function Order() {
         const userId = localStorage.getItem("userId");
         if (!userId) throw new Error("User ID not found. Please log in.");
 
-        const API_URL = import.meta.env.VITE_API_URL;
+      
 
-        const { data } = await axios.get(`${API_URL}/api/orders/${userId}`, {
+        const { data } = await axios.get(`http://localhost:3102/api/orders/${userId}`, {
           headers: { "Content-Type": "application/json" },
           // You can add withCredentials if your API needs cookies/auth:
           // withCredentials: true,

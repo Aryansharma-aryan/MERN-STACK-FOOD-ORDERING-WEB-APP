@@ -78,9 +78,9 @@ export default function Cart({ cart, setCart }) {
           };
 
           try {
-            const API_URL = import.meta.env.VITE_API_URL;
+          
 
-            const response = await fetch(`${API_URL}/api/orders`, {
+            const response = await fetch(`http://localhost:3102/api/orders`, {
               method: "POST",
               credentials: "include",
               mode: "cors",
@@ -104,12 +104,12 @@ export default function Cart({ cart, setCart }) {
         },
         (error) => {
           setLoading(false);
-          alert("⚠ Location access denied. Please enable GPS and try again.");
+          alert("⚠ Location access denied. Please enable GPS and try again.",error);
         }
       );
     } catch (error) {
       setLoading(false);
-      alert("An unexpected error occurred.");
+      alert("An unexpected error occurred.",error);
     }
   };
 

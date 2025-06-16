@@ -8,11 +8,11 @@ const DisplayData = ({ setCart = () => {} }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
 
+  // Fetch data on mount
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const API_URL = import.meta.env.VITE_API_URL;
-        const response = await fetch(`${API_URL}/api/food`, {
+        const response = await fetch(`http://localhost:3102/api/food`, {
           mode: "cors",
           credentials: "include",
         });
@@ -33,27 +33,39 @@ const DisplayData = ({ setCart = () => {} }) => {
     fetchData();
   }, []);
 
-  // Memoize filtered and sorted data to avoid unnecessary recalculations
-  const filteredSortedData = useMemo(() => {
-    let filtered = foodData.filter((food) =>
-      food.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    if (sortOrder === "asc") {
-      filtered.sort((a, b) => a.price - b.price);
-    } else if (sortOrder === "desc") {
-      filtered.sort((a, b) => b.price - a.price);
-    }
-    return filtered;
-  }, [foodData, searchTerm, sortOrder]);
+  // Debounce searchTerm
+  const [debouncedSearch, setDebouncedSearch] = useState(searchTerm);
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setCurrentPage(1);
+    }, 400);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
 
-  // Pagination slice
-  const totalPages = Math.ceil(filteredSortedData.length / itemsPerPage);
+  // Filtered Data
+  const filteredData = useMemo(() => {
+    return foodData.filter((food) =>
+      food.name.toLowerCase().includes(debouncedSearch.toLowerCase())
+    );
+  }, [foodData, debouncedSearch]);
+
+  // Sorted Data
+  const sortedData = useMemo(() => {
+    const sorted = [...filteredData];
+    if (sortOrder === "asc") sorted.sort((a, b) => a.price - b.price);
+    else if (sortOrder === "desc") sorted.sort((a, b) => b.price - a.price);
+    return sorted;
+  }, [filteredData, sortOrder]);
+
+  // Paginated Data
+  const totalPages = Math.ceil(sortedData.length / itemsPerPage);
   const currentItems = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
-    return filteredSortedData.slice(start, start + itemsPerPage);
-  }, [filteredSortedData, currentPage]);
+    return sortedData.slice(start, start + itemsPerPage);
+  }, [sortedData, currentPage]);
 
-  // Quantity handler
+  // Quantity Change
   const handleQuantityChange = (id, change) => {
     setFoodData((prev) =>
       prev.map((item) =>
@@ -86,17 +98,22 @@ const DisplayData = ({ setCart = () => {} }) => {
   return (
     <div className="container-fluid px-0">
       {loading ? (
-        <div
-          className="d-flex justify-content-center align-items-center"
-          style={{ height: "60vh" }}
-        >
-          <div
-            className="spinner-border text-danger"
-            role="status"
-            style={{ width: "5rem", height: "5rem" }}
-          >
-            <span className="visually-hidden">Loading...</span>
-          </div>
+        <div className="row p-4">
+          {[...Array(6)].map((_, i) => (
+            <div className="col-md-4 mb-4" key={i}>
+              <div
+                className="placeholder-glow shadow"
+                style={{
+                  height: "350px",
+                  borderRadius: "15px",
+                  background:
+                    "linear-gradient(90deg, #f0f0f0 25%, #e4e4e4 37%, #f0f0f0 63%)",
+                  backgroundSize: "1000px 100%",
+                  animation: "shimmer 1.5s infinite",
+                }}
+              />
+            </div>
+          ))}
         </div>
       ) : (
         <>
@@ -120,7 +137,7 @@ const DisplayData = ({ setCart = () => {} }) => {
                   <img
                     loading="lazy"
                     src={src}
-                    className="d-block w-100 carousel-img"
+                    className="d-block w-100"
                     alt={`Slide ${idx + 1}`}
                     style={{ maxHeight: "400px", objectFit: "cover" }}
                   />
@@ -133,10 +150,7 @@ const DisplayData = ({ setCart = () => {} }) => {
               data-bs-target="#carouselExampleIndicators"
               data-bs-slide="prev"
             >
-              <span
-                className="carousel-control-prev-icon"
-                aria-hidden="true"
-              ></span>
+              <span className="carousel-control-prev-icon"></span>
               <span className="visually-hidden">Previous</span>
             </button>
             <button
@@ -145,30 +159,23 @@ const DisplayData = ({ setCart = () => {} }) => {
               data-bs-target="#carouselExampleIndicators"
               data-bs-slide="next"
             >
-              <span
-                className="carousel-control-next-icon"
-                aria-hidden="true"
-              ></span>
+              <span className="carousel-control-next-icon"></span>
               <span className="visually-hidden">Next</span>
             </button>
           </div>
 
-          {/* Search & Sort */}
+          {/* Search + Sort */}
           <div className="d-flex justify-content-center align-items-center gap-3 my-3 flex-wrap">
             <input
               type="text"
               className="form-control w-50 shadow-lg"
               placeholder="Search for food..."
               value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
+              onChange={(e) => setSearchTerm(e.target.value)}
               style={{
                 borderRadius: "10px",
                 padding: "10px",
                 fontSize: "16px",
-                background: "white",
                 border: "2px solid #ff0000",
                 boxShadow:
                   "0 0 20px 5px #ff0000, 0 0 30px 10px #ff0000, 0 0 40px 15px #ff0000",
@@ -197,15 +204,7 @@ const DisplayData = ({ setCart = () => {} }) => {
           </div>
 
           {/* Food Cards */}
-          <div
-            className="container mt-4"
-            style={{
-              padding: "20px",
-              background: "white",
-              borderRadius: "15px",
-              boxShadow: "0 0 10px rgba(255,77,0,0.7)",
-            }}
-          >
+          <div className="container mt-4">
             <div className="row">
               {currentItems.length === 0 ? (
                 <p className="text-center w-100 mt-4 text-danger">
@@ -213,12 +212,8 @@ const DisplayData = ({ setCart = () => {} }) => {
                 </p>
               ) : (
                 currentItems.map((food) => (
-              <div className="col-12 mb-4" key={food._id}>
-
-                    <div
-                      className="card shadow-lg"
-                      style={{ borderRadius: "15px" }}
-                    >
+                  <div className="col-md-4 mb-4" key={food._id}>
+                    <div className="card shadow-lg" style={{ borderRadius: "15px" }}>
                       <img
                         loading="lazy"
                         src={food.image || "https://via.placeholder.com/200"}
@@ -233,9 +228,7 @@ const DisplayData = ({ setCart = () => {} }) => {
                       />
                       <div className="card-body">
                         <h5 className="card-title">{food.name}</h5>
-                        <p className="card-text text-muted">
-                          {food.description}
-                        </p>
+                        <p className="card-text text-muted">{food.description}</p>
 
                         <div className="d-flex justify-content-between align-items-center">
                           <button
@@ -254,8 +247,7 @@ const DisplayData = ({ setCart = () => {} }) => {
                         </div>
 
                         <p className="mt-2 fw-bold text-center">
-                          Total Price: ₹
-                          {(food.price * food.quantity).toFixed(2)}
+                          Total Price: ₹{(food.price * food.quantity).toFixed(2)}
                         </p>
 
                         <button
@@ -264,76 +256,6 @@ const DisplayData = ({ setCart = () => {} }) => {
                         >
                           Add to Cart 🛒
                         </button>
-
-                        <hr />
-
-                        {/* Review Form */}
-                        <form
-                          onSubmit={async (e) => {
-                            e.preventDefault();
-                            const name = e.target.name.value.trim();
-                            const rating = parseInt(e.target.rating.value);
-                            const comment = e.target.comment.value.trim();
-
-                            if (!name || !rating) {
-                              alert("Please provide name and rating.");
-                              return;
-                            }
-
-                            try {
-                              const res = await fetch(
-                                `${import.meta.env.VITE_API_URL}/api/${food._id}/review`,
-                                {
-                                  method: "POST",
-                                  headers: {
-                                    "Content-Type": "application/json",
-                                  },
-                                  mode: "cors",
-                                  credentials: "include",
-                                  body: JSON.stringify({ name, rating, comment }),
-                                }
-                              );
-                              const data = await res.json();
-                              alert(data.message || "Review submitted!");
-                              e.target.reset();
-                            } catch (err) {
-                              alert("Failed to submit review");
-                              console.error(err);
-                            }
-                          }}
-                        >
-                          <input
-                            name="name"
-                            type="text"
-                            className="form-control mb-2"
-                            placeholder="Your Name"
-                            required
-                          />
-                          <select
-                            name="rating"
-                            className="form-select mb-2"
-                            required
-                          >
-                            <option value="">⭐ Select Rating</option>
-                            {[1, 2, 3, 4, 5].map((r) => (
-                              <option key={r} value={r}>
-                                {"⭐".repeat(r)}
-                              </option>
-                            ))}
-                          </select>
-                          <textarea
-                            name="comment"
-                            rows="2"
-                            className="form-control mb-2"
-                            placeholder="Write your review..."
-                          />
-                          <button
-                            type="submit"
-                            className="btn btn-outline-primary btn-sm w-100"
-                          >
-                            Submit Review ✍️
-                          </button>
-                        </form>
                       </div>
                     </div>
                   </div>
@@ -343,37 +265,27 @@ const DisplayData = ({ setCart = () => {} }) => {
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <nav aria-label="Page navigation example">
-                <ul className="pagination justify-content-center mt-4">
-                  <li
-                    className={`page-item ${currentPage === 1 ? "disabled" : ""}`}
-                    onClick={() => goToPage(currentPage - 1)}
-                  >
-                    <button className="page-link">Previous</button>
+              <nav className="mt-4">
+                <ul className="pagination justify-content-center">
+                  <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
+                    <button className="page-link" onClick={() => goToPage(currentPage - 1)}>
+                      Previous
+                    </button>
                   </li>
-
-                  {[...Array(totalPages)].map((_, i) => {
-                    const pageNum = i + 1;
-                    return (
-                      <li
-                        key={pageNum}
-                        className={`page-item ${
-                          currentPage === pageNum ? "active" : ""
-                        }`}
-                        onClick={() => goToPage(pageNum)}
-                      >
-                        <button className="page-link">{pageNum}</button>
-                      </li>
-                    );
-                  })}
-
-                  <li
-                    className={`page-item ${
-                      currentPage === totalPages ? "disabled" : ""
-                    }`}
-                    onClick={() => goToPage(currentPage + 1)}
-                  >
-                    <button className="page-link">Next</button>
+                  {[...Array(totalPages)].map((_, i) => (
+                    <li
+                      key={i}
+                      className={`page-item ${currentPage === i + 1 ? "active" : ""}`}
+                    >
+                      <button className="page-link" onClick={() => goToPage(i + 1)}>
+                        {i + 1}
+                      </button>
+                    </li>
+                  ))}
+                  <li className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}>
+                    <button className="page-link" onClick={() => goToPage(currentPage + 1)}>
+                      Next
+                    </button>
                   </li>
                 </ul>
               </nav>
