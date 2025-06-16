@@ -33,7 +33,7 @@ const Checkout = () => {
       const amountInPaise = cartTotal * 100; // 🛠️ Correcting here: Convert ₹ to paise
 
 
-const response = await axios.post(`http://localhost:3102/api/create-order`, {
+const response = await axios.post(`https://mern-stack-food-ordering-web-app-2.onrender.com/api/create-order`, {
   amount: amountInPaise,
 });
 
