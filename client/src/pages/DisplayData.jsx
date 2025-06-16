@@ -12,7 +12,7 @@ const DisplayData = ({ setCart = () => {} }) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch(`http://localhost:3102/api/food`, {
+        const response = await fetch(`https://mern-stack-food-ordering-web-app-2.onrender.com/api/food`, {
           mode: "cors",
           credentials: "include",
         });
