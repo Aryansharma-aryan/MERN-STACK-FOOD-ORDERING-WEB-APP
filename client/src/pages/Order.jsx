@@ -15,7 +15,7 @@ export default function Order() {
 
       
 
-        const { data } = await axios.get(`http://localhost:3102/api/orders/${userId}`, {
+        const { data } = await axios.get(`https://mern-stack-food-ordering-web-app-2.onrender.com/api/orders/${userId}`, {
           headers: { "Content-Type": "application/json" },
           // You can add withCredentials if your API needs cookies/auth:
           // withCredentials: true,
