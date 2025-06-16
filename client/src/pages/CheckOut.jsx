@@ -1,105 +1,275 @@
-import React, { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import axios from "axios";
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import PropTypes from "prop-types";
-import "bootstrap/dist/css/bootstrap.min.css"; // Import Bootstrap
 
-const Checkout = () => {
-  const location = useLocation();
+export default function Cart({ cart, setCart }) {
   const navigate = useNavigate();
-  const [razorpayLoaded, setRazorpayLoaded] = useState(false);
-  const [cartTotal, setCartTotal] = useState(0);
+  const [userId, setUserId] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState(null); // success/error feedback
+  const [confirmRemoveId, setConfirmRemoveId] = useState(null);
 
+  // Load userId & cart from localStorage on mount
   useEffect(() => {
-    if (location.state?.cartTotal) {
-      setCartTotal(location.state.cartTotal);
-    } else {
-      console.warn("Cart total is missing. Ensure you are passing it from the cart page.");
+    const storedUserId = localStorage.getItem("userId");
+    if (storedUserId) setUserId(storedUserId);
+
+    const storedCart = localStorage.getItem("cart");
+    if (storedCart) setCart(JSON.parse(storedCart));
+  }, []);
+
+  // Save cart to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem("cart", JSON.stringify(cart));
+  }, [cart]);
+
+  const removeFromCart = (itemId) => {
+    setCart(cart.filter((item) => item._id !== itemId));
+    setConfirmRemoveId(null);
+    setMessage("Item removed from cart.");
+  };
+
+  const updateQuantity = (itemId, change) => {
+    setCart((prevCart) =>
+      prevCart
+        .map((item) =>
+          item._id === itemId
+            ? { ...item, quantity: Math.max(1, (item.quantity || 1) + change) }
+            : item
+        )
+        .filter((item) => item.quantity > 0)
+    );
+  };
+
+  const subtotal = cart.reduce(
+    (total, item) => total + (item.price || 0) * (item.quantity || 1),
+    0
+  );
+
+  const taxRate = 0.05; // 5% GST
+  const tax = subtotal * taxRate;
+  const totalPrice = subtotal + tax;
+
+  const placeOrder = async () => {
+    if (!userId) {
+      alert("User not logged in. Please login first.");
+      return;
     }
+    if (cart.length === 0) {
+      alert("Cart is empty. Add items before placing an order.");
+      return;
+    }
+    setLoading(true);
+    setMessage(null);
 
-    const loadRazorpayScript = () => {
-      const script = document.createElement("script");
-      script.src = "https://checkout.razorpay.com/v1/checkout.js";
-      script.async = true;
-      script.onload = () => setRazorpayLoaded(true);
-      document.body.appendChild(script);
-    };
-
-    loadRazorpayScript();
-  }, [location.state]);
-
-  const handlePayment = async () => {
     try {
-      const amountInPaise = cartTotal * 100; // 🛠️ Correcting here: Convert ₹ to paise
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const userLocation = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          };
 
+          const orderData = {
+            userId,
+            items: cart,
+            totalPrice,
+            customerLocation: userLocation,
+          };
 
-const response = await axios.post(`https://mern-stack-food-ordering-web-app-2.onrender.com/api/create-order`, {
-  amount: amountInPaise,
-});
+          try {
+          
 
+            const response = await fetch(`https://mern-stack-food-ordering-web-app-2.onrender.com/api/orders`, {
+              method: "POST",
+              credentials: "include",
+              mode: "cors",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(orderData),
+            });
 
-      if (!response.data.success || !response.data.order || !response.data.order.id) {
-        alert("Failed to initiate payment.");
-        return;
-      }
-
-      const { order } = response.data;
-
-      const options = {
-        key: "rzp_test_IKvri4H04w6Khy",
-        amount: order.amount,
-        currency: order.currency,
-        name: "Food Mania",
-        description: "Food Order Payment",
-        order_id: order.id,
-        handler: function (paymentResponse) {
-          alert(`Payment Successful! Payment ID: ${paymentResponse.razorpay_payment_id}`);
-          navigate(`/payment/${paymentResponse.razorpay_payment_id}`);
+            const data = await response.json();
+            if (response.ok) {
+              setMessage("✅ Order placed successfully!");
+              setCart([]); // clear cart
+              localStorage.removeItem("cart");
+            } else {
+              setMessage(`❌ Failed to place order: ${data.error || "Unknown error"}`);
+            }
+          } catch (error) {
+            setMessage("❌ Something went wrong. Check console.");
+            console.error("Order error:", error);
+          }
+          setLoading(false);
         },
-        prefill: {
-          name: "Aryan Sharma",
-          email: "arsharma2951@gmail.com",
-          contact: "+91 9518403808",
-        },
-        theme: { color: "#F37254" },
-      };
-
-      const razorpay = new window.Razorpay(options);
-      razorpay.open();
+        (error) => {
+          setLoading(false);
+          alert("⚠ Location access denied. Please enable GPS and try again.",error);
+        }
+      );
     } catch (error) {
-      console.error("Payment Error:", error.response?.data || error.message);
-      alert("Payment failed: " + (error.response?.data?.error || error.message));
+      setLoading(false);
+      alert("An unexpected error occurred.",error);
     }
   };
 
   return (
-    <div className="container mt-5">
-      <div className="row justify-content-center">
-        <div className="col-md-6">
-          <div className="card shadow-lg border-0">
-            <div className="card-header text-center bg-primary text-white">
-              <h2>Checkout</h2>
-            </div>
-            <div className="card-body text-center">
-              <h4 className="text-muted">Total Amount</h4>
-              <h2 className="fw-bold text-success">₹{cartTotal > 0 ? cartTotal.toFixed(2) : "0.00"}</h2>
-              <button
-                className="btn btn-lg btn-success mt-3 w-100"
-                onClick={handlePayment}
-                disabled={!razorpayLoaded}
-              >
-                {razorpayLoaded ? "Pay Now" : "Loading Payment..."}
-              </button>
+    <div className="container mt-4">
+      <h2 className="text-center">🛒 Your Shopping Cart</h2>
+
+      {message && (
+        <div
+          className={`alert ${
+            message.startsWith("✅") ? "alert-success" : "alert-danger"
+          } text-center`}
+          role="alert"
+        >
+          {message}
+        </div>
+      )}
+
+      {cart.length === 0 ? (
+        <div className="text-center mt-4">
+          <p>Your cart is empty.</p>
+          <img
+            src="https://cdn-icons-png.flaticon.com/512/2038/2038854.png"
+            alt="Empty cart"
+            style={{ width: "150px", opacity: 0.5 }}
+          />
+        </div>
+      ) : (
+        <>
+          <div className="row">
+            {cart.map((item) => (
+              <div key={item._id} className="col-md-4 mb-4">
+                <div className="card shadow" style={{ width: "18rem" }}>
+                  <img
+                    src={item.image || "https://via.placeholder.com/200"}
+                    className="card-img-top"
+                    alt={item.name}
+                    style={{ height: "200px", objectFit: "cover" }}
+                  />
+                  <div className="card-body">
+                    <h5 className="card-title">{item.name}</h5>
+                    <p className="card-text">₹{(item.price || 0).toFixed(2)}</p>
+
+                    <div className="d-flex justify-content-between align-items-center">
+                      <button
+                        className="btn btn-sm btn-danger"
+                        onClick={() => updateQuantity(item._id, -1)}
+                        disabled={item.quantity <= 1}
+                        title={item.quantity <= 1 ? "Minimum quantity is 1" : ""}
+                      >
+                        -
+                      </button>
+                      <span className="mx-2">{item.quantity || 1}</span>
+                      <button
+                        className="btn btn-sm btn-success"
+                        onClick={() => updateQuantity(item._id, 1)}
+                      >
+                        +
+                      </button>
+                    </div>
+
+                    <button
+                      className="btn btn-outline-danger mt-2 w-100"
+                      onClick={() => setConfirmRemoveId(item._id)}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Price Breakdown */}
+          <div className="text-center mt-4">
+            <p>Subtotal: ₹{subtotal.toFixed(2)}</p>
+            <p>Tax (5% GST): ₹{tax.toFixed(2)}</p>
+            <h4>Total Price: ₹{totalPrice.toFixed(2)}</h4>
+          </div>
+
+          <div className="text-center mt-3">
+            <button
+              className="btn btn-success px-4 me-2"
+              onClick={placeOrder}
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <span
+                    className="spinner-border spinner-border-sm me-2"
+                    role="status"
+                    aria-hidden="true"
+                  ></span>
+                  Placing Order...
+                </>
+              ) : (
+                "Place Order"
+              )}
+            </button>
+
+            <button
+              className="btn btn-primary px-4"
+              onClick={() => navigate("/checkOut", { state: { cartTotal: totalPrice } })}
+              disabled={loading}
+            >
+              Checkout
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Confirmation Modal */}
+      {confirmRemoveId && (
+        <div
+          className="modal fade show"
+          style={{ display: "block", backgroundColor: "rgba(0,0,0,0.5)" }}
+          tabIndex="-1"
+          role="dialog"
+          onClick={() => setConfirmRemoveId(null)}
+        >
+          <div
+            className="modal-dialog modal-dialog-centered"
+            role="document"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Confirm Removal</h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={() => setConfirmRemoveId(null)}
+                ></button>
+              </div>
+              <div className="modal-body">
+                <p>Are you sure you want to remove this item from the cart?</p>
+              </div>
+              <div className="modal-footer">
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => setConfirmRemoveId(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-danger"
+                  onClick={() => removeFromCart(confirmRemoveId)}
+                >
+                  Remove
+                </button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
-};
+}
 
-Checkout.propTypes = {
-  cartTotal: PropTypes.number,
+Cart.propTypes = {
+  cart: PropTypes.array.isRequired,
+  setCart: PropTypes.func.isRequired,
 };
-
-export default Checkout;
