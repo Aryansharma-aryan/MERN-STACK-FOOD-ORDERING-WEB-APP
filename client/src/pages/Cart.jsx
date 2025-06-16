@@ -6,19 +6,33 @@ export default function Cart({ cart, setCart }) {
   const navigate = useNavigate();
   const [userId, setUserId] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState(null); // success/error feedback
+  const [message, setMessage] = useState(null);
   const [confirmRemoveId, setConfirmRemoveId] = useState(null);
 
-  // Load userId & cart from localStorage on mount
+  // Load userId & cart from localStorage
   useEffect(() => {
     const storedUserId = localStorage.getItem("userId");
     if (storedUserId) setUserId(storedUserId);
 
     const storedCart = localStorage.getItem("cart");
-    if (storedCart) setCart(JSON.parse(storedCart));
+    if (storedCart) {
+      try {
+        const parsedCart = JSON.parse(storedCart);
+        if (Array.isArray(parsedCart)) {
+          setCart(parsedCart);
+        } else {
+          setCart([]);
+        }
+      } catch (error) {
+        console.error("Failed to parse cart from localStorage:", error);
+        setCart([]);
+      }
+    } else {
+      setCart([]);
+    }
   }, []);
 
-  // Save cart to localStorage whenever it changes
+  // Save cart to localStorage
   useEffect(() => {
     localStorage.setItem("cart", JSON.stringify(cart));
   }, [cart]);
@@ -41,12 +55,15 @@ export default function Cart({ cart, setCart }) {
     );
   };
 
-  const subtotal = cart.reduce(
-    (total, item) => total + (item.price || 0) * (item.quantity || 1),
-    0
-  );
+  const subtotal = Array.isArray(cart)
+    ? cart.reduce(
+        (total, item) =>
+          total + (item.price || 0) * (item.quantity || 1),
+        0
+      )
+    : 0;
 
-  const taxRate = 0.05; // 5% GST
+  const taxRate = 0.05;
   const tax = subtotal * taxRate;
   const totalPrice = subtotal + tax;
 
@@ -55,10 +72,11 @@ export default function Cart({ cart, setCart }) {
       alert("User not logged in. Please login first.");
       return;
     }
-    if (cart.length === 0) {
+    if (!Array.isArray(cart) || cart.length === 0) {
       alert("Cart is empty. Add items before placing an order.");
       return;
     }
+
     setLoading(true);
     setMessage(null);
 
@@ -78,20 +96,21 @@ export default function Cart({ cart, setCart }) {
           };
 
           try {
-          
-
-            const response = await fetch(`http://localhost:3102/api/orders`, {
-              method: "POST",
-              credentials: "include",
-              mode: "cors",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(orderData),
-            });
+            const response = await fetch(
+              `https://mern-stack-food-ordering-web-app-2.onrender.com/api/orders`,
+              {
+                method: "POST",
+                credentials: "include",
+                mode: "cors",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(orderData),
+              }
+            );
 
             const data = await response.json();
             if (response.ok) {
               setMessage("✅ Order placed successfully!");
-              setCart([]); // clear cart
+              setCart([]);
               localStorage.removeItem("cart");
             } else {
               setMessage(`❌ Failed to place order: ${data.error || "Unknown error"}`);
@@ -100,6 +119,7 @@ export default function Cart({ cart, setCart }) {
             setMessage("❌ Something went wrong. Check console.");
             console.error("Order error:", error);
           }
+
           setLoading(false);
         },
         (error) => {
@@ -109,7 +129,7 @@ export default function Cart({ cart, setCart }) {
       );
     } catch (error) {
       setLoading(false);
-      alert("An unexpected error occurred.",error);
+      alert("An unexpected error occurred.", error);
     }
   };
 
@@ -128,7 +148,7 @@ export default function Cart({ cart, setCart }) {
         </div>
       )}
 
-      {cart.length === 0 ? (
+      {!Array.isArray(cart) || cart.length === 0 ? (
         <div className="text-center mt-4">
           <p>Your cart is empty.</p>
           <img
@@ -212,7 +232,9 @@ export default function Cart({ cart, setCart }) {
 
             <button
               className="btn btn-primary px-4"
-              onClick={() => navigate("/checkOut", { state: { cartTotal: totalPrice } })}
+              onClick={() =>
+                navigate("/checkOut", { state: { cartTotal: totalPrice } })
+              }
               disabled={loading}
             >
               Checkout
@@ -269,7 +291,13 @@ export default function Cart({ cart, setCart }) {
   );
 }
 
+// ✅ Prop types
 Cart.propTypes = {
   cart: PropTypes.array.isRequired,
   setCart: PropTypes.func.isRequired,
+};
+
+// ✅ Default props to prevent crashes
+Cart.defaultProps = {
+  cart: [],
 };
