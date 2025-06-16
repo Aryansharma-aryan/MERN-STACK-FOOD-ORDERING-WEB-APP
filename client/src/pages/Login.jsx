@@ -19,7 +19,7 @@ export default function Login({ handleLogin }) {
 
     try {
       
-      const response = await fetch(`http://localhost:3102/api/login`, {
+      const response = await fetch(`https://mern-stack-food-ordering-web-app-2.onrender.com/api/login`, {
         method: "POST",
         mode: "cors",
         headers: { "Content-Type": "application/json" },
