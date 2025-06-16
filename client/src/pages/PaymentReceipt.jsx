@@ -13,7 +13,7 @@ const PaymentReceipt = () => {
   const fetchPaymentDetails = async () => {
     try {
       // Access the API URL from your .env file
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/payment/${paymentId}`);
+      const response = await axios.get(`https://mern-stack-food-ordering-web-app-2.onrender.com/api/payment/${paymentId}`);
       setPaymentDetails(response.data);
     } catch (err) {
       setError("Error fetching payment details.", err);
