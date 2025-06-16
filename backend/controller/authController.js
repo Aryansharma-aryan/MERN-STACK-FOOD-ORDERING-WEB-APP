@@ -21,14 +21,7 @@ const bcrypt = require("bcryptjs");
 
 
 
-<<<<<<< HEAD
 const signup = async (req, res) => {
-=======
-/**
- * Sign up a new user
- */
-const signup = async (req, res, next) => {
->>>>>>> 9490180 (modified authController.js)
   try {
     // 1. Validate input
     const errors = validationResult(req);
@@ -47,24 +40,15 @@ const signup = async (req, res, next) => {
     // 4. Hash the user's password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-<<<<<<< HEAD
     // 5. Create the new user
     const newUser = new User({ name, email, password: hashedPassword, role });
     await newUser.save();
 
     // 6. OPTIONAL: create the admin user once
-=======
-    // 5. Create main user
-    const newUser = new User({ name, email, password: hashedPassword, role });
-    await newUser.save();
-
-    // 6. Optional: create admin if not exists
->>>>>>> 9490180 (modified authController.js)
     const adminEmail = 'arsharma2951@gmail.com';
     const existingAdmin = await User.findOne({ email: adminEmail });
 
     if (!existingAdmin) {
-<<<<<<< HEAD
       const adminPass = process.env.ADMIN_PASS || 'SecureAdminPass123';
       const adminHash = await bcrypt.hash(adminPass, 10);
       const adminUser = new User({
@@ -93,33 +77,13 @@ const signup = async (req, res, next) => {
     });
 
     return res.status(201).json({ message: "User created successfully", token });
-=======
-      const adminUser = new User({
-        name: 'Aryan Sharma',
-        email: adminEmail,
-        password: /* ideally an admin-specific hashed password */,
-        role: 'admin',
-      });
-      await adminUser.save();
-    }
-
-    // ✅ All done — respond with success
-    return res.status(201).json({ message: "Signup successful!" });
->>>>>>> 9490180 (modified authController.js)
 
   } catch (error) {
     next(error); // Pass to Express error handler
   }
 };
 
-<<<<<<< HEAD
 const loginUser = async (req, res) => {
-=======
-  
-
-
-const login = async (req, res) => {
->>>>>>> 9490180 (modified authController.js)
   try {
     // ✅ Validate input
     const errors = validationResult(req);
