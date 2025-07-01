@@ -16,16 +16,19 @@ export default function Login({ handleLogin }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError("");
 
     try {
-      
-      const response = await fetch(`https://mern-stack-food-ordering-web-app-2.onrender.com/api/login`, {
-        method: "POST",
-        mode: "cors",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(formData),
-      });
+      const response = await fetch(
+        `https://mern-stack-food-ordering-web-app-2.onrender.com/api/login`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          mode: "cors",
+          body: JSON.stringify(formData),
+        }
+      );
 
       const data = await response.json();
 
@@ -37,9 +40,8 @@ export default function Login({ handleLogin }) {
       localStorage.setItem("userId", data.userId);
       localStorage.setItem("isAdmin", data.role === "admin");
 
-      handleLogin(); // Update auth context/state
+      handleLogin(); // update context or state
       navigate("/");
-
     } catch (error) {
       console.error("Login error:", error.message);
       setError(error.message || "Login failed!");
@@ -49,11 +51,24 @@ export default function Login({ handleLogin }) {
   };
 
   return (
-    <div className="d-flex justify-content-center align-items-center vh-100" style={{ backgroundColor: "#2C3E50" }}>
-      <div className="card p-4 shadow-lg" style={{ width: "350px", borderRadius: "15px", backgroundColor: "#34495E", color: "#fff" }}>
+    <div
+      className="d-flex justify-content-center align-items-center vh-100"
+      style={{ backgroundColor: "#2C3E50" }}
+    >
+      <div
+        className="card p-4 shadow-lg"
+        style={{
+          width: "350px",
+          borderRadius: "15px",
+          backgroundColor: "#34495E",
+          color: "#fff",
+        }}
+      >
         <h3 className="text-center mb-4">Login</h3>
-        
-        {error && <div className="alert alert-danger">{error}</div>}
+
+        {error && (
+          <div className="alert alert-danger text-center py-2">{error}</div>
+        )}
 
         <form onSubmit={handleSubmit}>
           <div className="mb-3">
@@ -66,6 +81,7 @@ export default function Login({ handleLogin }) {
               value={formData.email}
               onChange={handleChange}
               required
+              disabled={loading}
               style={{ borderRadius: "10px" }}
             />
           </div>
@@ -80,6 +96,7 @@ export default function Login({ handleLogin }) {
               value={formData.password}
               onChange={handleChange}
               required
+              disabled={loading}
               style={{ borderRadius: "10px" }}
             />
           </div>
@@ -87,12 +104,16 @@ export default function Login({ handleLogin }) {
           <button
             type="submit"
             className="btn w-100 text-white"
-            style={{ backgroundColor: "#E67E22", borderRadius: "10px" }}
+            style={{ backgroundColor: "#E74C3C", borderRadius: "10px" }}
             disabled={loading}
           >
             {loading ? (
               <>
-                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                <span
+                  className="spinner-border spinner-border-sm text-light me-2"
+                  role="status"
+                  aria-hidden="true"
+                ></span>
                 Logging in...
               </>
             ) : (
@@ -102,7 +123,10 @@ export default function Login({ handleLogin }) {
 
           <div className="text-center mt-3">
             <small>
-              New user? <Link to="/signup" className="text-warning">Signup</Link>
+              New user?{" "}
+              <Link to="/signup" className="text-warning">
+                Signup
+              </Link>
             </small>
           </div>
         </form>
