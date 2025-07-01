@@ -8,14 +8,25 @@ const DisplayData = ({ setCart = () => {} }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
 
-  // Fetch data on mount
+  const [debouncedSearch, setDebouncedSearch] = useState(searchTerm);
+
   useEffect(() => {
+    const cachedData = sessionStorage.getItem("foodCache");
+    if (cachedData) {
+      setFoodData(JSON.parse(cachedData));
+      setLoading(false);
+      return;
+    }
+
     const fetchData = async () => {
       try {
-        const response = await fetch(`https://mern-stack-food-ordering-web-app-2.onrender.com/api/food`, {
-          mode: "cors",
-          credentials: "include",
-        });
+        const response = await fetch(
+          `https://mern-stack-food-ordering-web-app-2.onrender.com/api/food`,
+          {
+            mode: "cors",
+            credentials: "include",
+          }
+        );
         if (!response.ok) throw new Error(`Error: ${response.status}`);
         const data = await response.json();
         const updatedData = data.map((item) => ({
@@ -24,17 +35,17 @@ const DisplayData = ({ setCart = () => {} }) => {
           price: Number(item.price) || 0,
         }));
         setFoodData(updatedData);
+        sessionStorage.setItem("foodCache", JSON.stringify(updatedData));
       } catch (error) {
         console.error(error);
       } finally {
         setLoading(false);
       }
     };
+
     fetchData();
   }, []);
 
-  // Debounce searchTerm
-  const [debouncedSearch, setDebouncedSearch] = useState(searchTerm);
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearch(searchTerm);
@@ -43,14 +54,12 @@ const DisplayData = ({ setCart = () => {} }) => {
     return () => clearTimeout(handler);
   }, [searchTerm]);
 
-  // Filtered Data
   const filteredData = useMemo(() => {
     return foodData.filter((food) =>
       food.name.toLowerCase().includes(debouncedSearch.toLowerCase())
     );
   }, [foodData, debouncedSearch]);
 
-  // Sorted Data
   const sortedData = useMemo(() => {
     const sorted = [...filteredData];
     if (sortOrder === "asc") sorted.sort((a, b) => a.price - b.price);
@@ -58,14 +67,12 @@ const DisplayData = ({ setCart = () => {} }) => {
     return sorted;
   }, [filteredData, sortOrder]);
 
-  // Paginated Data
   const totalPages = Math.ceil(sortedData.length / itemsPerPage);
   const currentItems = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
     return sortedData.slice(start, start + itemsPerPage);
   }, [sortedData, currentPage]);
 
-  // Quantity Change
   const handleQuantityChange = (id, change) => {
     setFoodData((prev) =>
       prev.map((item) =>
@@ -77,15 +84,23 @@ const DisplayData = ({ setCart = () => {} }) => {
   };
 
   const addToCart = (food) => {
+    const token = localStorage.getItem("authToken");
+    if (!token) {
+      alert("⚠️ Please login to add items to cart.");
+      return;
+    }
+
     setCart((prevCart) => {
       const exists = prevCart.find((item) => item._id === food._id);
       if (exists) {
+        alert(`✅ ${food.name} quantity updated in cart!`);
         return prevCart.map((item) =>
           item._id === food._id
             ? { ...item, quantity: item.quantity + food.quantity }
             : item
         );
       }
+      alert(`✅ ${food.name} added to cart!`);
       return [...prevCart, { ...food }];
     });
   };
@@ -98,22 +113,15 @@ const DisplayData = ({ setCart = () => {} }) => {
   return (
     <div className="container-fluid px-0">
       {loading ? (
-        <div className="row p-4">
-          {[...Array(6)].map((_, i) => (
-            <div className="col-md-4 mb-4" key={i}>
-              <div
-                className="placeholder-glow shadow"
-                style={{
-                  height: "350px",
-                  borderRadius: "15px",
-                  background:
-                    "linear-gradient(90deg, #f0f0f0 25%, #e4e4e4 37%, #f0f0f0 63%)",
-                  backgroundSize: "1000px 100%",
-                  animation: "shimmer 1.5s infinite",
-                }}
-              />
-            </div>
-          ))}
+        <div className="text-center mt-5">
+          <div
+            className="spinner-border text-danger"
+            style={{ width: "5rem", height: "5rem" }}
+            role="status"
+          >
+            <span className="visually-hidden">Loading...</span>
+          </div>
+          <p className="text-danger mt-3 fw-bold">Fetching fresh food menu...</p>
         </div>
       ) : (
         <>
@@ -164,7 +172,7 @@ const DisplayData = ({ setCart = () => {} }) => {
             </button>
           </div>
 
-          {/* Search + Sort */}
+          {/* Search & Sort */}
           <div className="d-flex justify-content-center align-items-center gap-3 my-3 flex-wrap">
             <input
               type="text"
@@ -176,9 +184,6 @@ const DisplayData = ({ setCart = () => {} }) => {
                 borderRadius: "10px",
                 padding: "10px",
                 fontSize: "16px",
-                border: "2px solid #ff0000",
-                boxShadow:
-                  "0 0 20px 5px #ff0000, 0 0 30px 10px #ff0000, 0 0 40px 15px #ff0000",
               }}
             />
             <select
@@ -188,18 +193,11 @@ const DisplayData = ({ setCart = () => {} }) => {
                 setSortOrder(e.target.value);
                 setCurrentPage(1);
               }}
-              style={{
-                borderRadius: "10px",
-                padding: "10px",
-                fontSize: "16px",
-                border: "2px solid #ff0000",
-                boxShadow:
-                  "0 0 20px 5px #ff0000, 0 0 30px 10px #ff0000, 0 0 40px 15px #ff0000",
-              }}
+              style={{ borderRadius: "10px", padding: "10px", fontSize: "16px" }}
             >
               <option value="">Sort by Price</option>
-              <option value="asc">Price: Low to High</option>
-              <option value="desc">Price: High to Low</option>
+              <option value="asc">Low to High</option>
+              <option value="desc">High to Low</option>
             </select>
           </div>
 
@@ -247,7 +245,7 @@ const DisplayData = ({ setCart = () => {} }) => {
                         </div>
 
                         <p className="mt-2 fw-bold text-center">
-                          Total Price: ₹{(food.price * food.quantity).toFixed(2)}
+                          ₹{(food.price * food.quantity).toFixed(2)}
                         </p>
 
                         <button

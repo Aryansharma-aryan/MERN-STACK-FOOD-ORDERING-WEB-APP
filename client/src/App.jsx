@@ -1,4 +1,3 @@
-// App.js
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { useState, useEffect, Suspense, lazy } from "react";
 
@@ -7,9 +6,9 @@ import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import Loader from "./components/Loader";
 import AdminDashboard from "./components/Admin/AdminDashboard";
-import AdminRoute from "./components/AdminRoute"; // Admin Route wrapper
+import AdminRoute from "./components/AdminRoute"; // Admin wrapper for /admin
 
-// Pages (lazy loaded for performance)
+// Pages (Lazy loading for performance)
 const Signup = lazy(() => import("./pages/Signup"));
 const Login = lazy(() => import("./pages/Login"));
 const Home = lazy(() => import("./pages/Home"));
@@ -19,53 +18,75 @@ const OrderPage = lazy(() => import("./pages/OrderPage"));
 const Checkout = lazy(() => import("./pages/CheckOut"));
 const PaymentReceipt = lazy(() => import("./pages/PaymentReceipt"));
 
-// App Component
 function App() {
   const navigate = useNavigate();
 
-  const [isAuthenticated, setIsAuthenticated] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(null); // null = loading
   const [isAdmin, setIsAdmin] = useState(false);
   const [cart, setCart] = useState([]);
 
-  // Load auth and cart from localStorage on app load
+  // Load auth and cart on app load
   useEffect(() => {
     const token = localStorage.getItem("authToken");
     const adminStatus = localStorage.getItem("isAdmin") === "true";
+    const userId = localStorage.getItem("userId");
 
     setIsAuthenticated(!!token);
     setIsAdmin(adminStatus);
 
-    const savedCart = JSON.parse(localStorage.getItem("cart") || "[]");
-    setCart(savedCart);
+    if (userId) {
+      try {
+        const savedCart = JSON.parse(localStorage.getItem(`cart_${userId}`) || "[]");
+        setCart(Array.isArray(savedCart) ? savedCart : []);
+      } catch (err) {
+        console.error("Failed to load cart:", err);
+        setCart([]);
+      }
+    }
   }, []);
 
-  // Save cart to localStorage on update
+  // Save user-specific cart to localStorage
   useEffect(() => {
-    localStorage.setItem("cart", JSON.stringify(cart));
+    const userId = localStorage.getItem("userId");
+    if (userId) {
+      localStorage.setItem(`cart_${userId}`, JSON.stringify(cart));
+    }
   }, [cart]);
 
-  // Login handler
   const handleLogin = () => {
-    localStorage.setItem("isAdmin", localStorage.getItem("isAdmin"));
+    const isAdminNow = localStorage.getItem("isAdmin") === "true";
     setIsAuthenticated(true);
-    setIsAdmin(localStorage.getItem("isAdmin") === "true");
+    setIsAdmin(isAdminNow);
+
+    const userId = localStorage.getItem("userId");
+    if (userId) {
+      const savedCart = JSON.parse(localStorage.getItem(`cart_${userId}`) || "[]");
+      setCart(Array.isArray(savedCart) ? savedCart : []);
+    }
   };
 
-  // Logout handler
   const handleLogout = () => {
+    const userId = localStorage.getItem("userId");
+
+    // Optionally, remove cart too
+    if (userId) {
+      localStorage.removeItem(`cart_${userId}`);
+    }
+
     localStorage.removeItem("authToken");
+    localStorage.removeItem("userId");
     localStorage.removeItem("isAdmin");
+
     setIsAuthenticated(false);
     setIsAdmin(false);
+    setCart([]);
     navigate("/login", { replace: true });
   };
 
-  // Show loader initially
   if (isAuthenticated === null) return <Loader />;
 
   return (
     <>
-      {/* Always show Navbar and Footer */}
       <Navbar cart={cart} handleLogout={handleLogout} isAdmin={isAdmin} />
 
       <main>
@@ -89,15 +110,11 @@ function App() {
             <Route path="/checkout" element={<Checkout />} />
             <Route path="/payment/:paymentId" element={<PaymentReceipt />} />
 
-            {/* Authenticated User Routes */}
-            {isAuthenticated && (
-              <>
-                <Route path="/order" element={<Order />} />
-                <Route path="/myOrders" element={<OrderPage />} />
-              </>
-            )}
+            {/* Optional: Protect Orders with auth */}
+            <Route path="/order" element={<Order />} />
+            <Route path="/myOrders" element={<OrderPage />} />
 
-            {/* Admin Route */}
+            {/* Admin Panel (Protected Route) */}
             {isAuthenticated && isAdmin && (
               <Route
                 path="/admin"
@@ -105,7 +122,7 @@ function App() {
               />
             )}
 
-            {/* Catch-All */}
+            {/* Fallback to Home */}
             <Route path="*" element={<Navigate to="/home" />} />
           </Routes>
         </Suspense>

@@ -9,33 +9,29 @@ export default function Cart({ cart, setCart }) {
   const [message, setMessage] = useState(null);
   const [confirmRemoveId, setConfirmRemoveId] = useState(null);
 
-  // Load userId & cart from localStorage
+  // Load userId & cart from localStorage (user-specific)
   useEffect(() => {
     const storedUserId = localStorage.getItem("userId");
-    if (storedUserId) setUserId(storedUserId);
+    if (storedUserId) {
+      setUserId(storedUserId);
 
-    const storedCart = localStorage.getItem("cart");
-    if (storedCart) {
+      const userCart = localStorage.getItem(`cart_${storedUserId}`);
       try {
-        const parsedCart = JSON.parse(storedCart);
-        if (Array.isArray(parsedCart)) {
-          setCart(parsedCart);
-        } else {
-          setCart([]);
-        }
+        const parsedCart = JSON.parse(userCart || "[]");
+        setCart(Array.isArray(parsedCart) ? parsedCart : []);
       } catch (error) {
-        console.error("Failed to parse cart from localStorage:", error);
+        console.error("Error parsing user cart:", error);
         setCart([]);
       }
-    } else {
-      setCart([]);
     }
   }, []);
 
-  // Save cart to localStorage
+  // Save cart to localStorage (user-specific)
   useEffect(() => {
-    localStorage.setItem("cart", JSON.stringify(cart));
-  }, [cart]);
+    if (userId) {
+      localStorage.setItem(`cart_${userId}`, JSON.stringify(cart));
+    }
+  }, [cart, userId]);
 
   const removeFromCart = (itemId) => {
     setCart(cart.filter((item) => item._id !== itemId));
@@ -57,8 +53,7 @@ export default function Cart({ cart, setCart }) {
 
   const subtotal = Array.isArray(cart)
     ? cart.reduce(
-        (total, item) =>
-          total + (item.price || 0) * (item.quantity || 1),
+        (total, item) => total + (item.price || 0) * (item.quantity || 1),
         0
       )
     : 0;
@@ -68,69 +63,59 @@ export default function Cart({ cart, setCart }) {
   const totalPrice = subtotal + tax;
 
   const placeOrder = async () => {
-    if (!userId) {
-      alert("User not logged in. Please login first.");
-      return;
-    }
-    if (!Array.isArray(cart) || cart.length === 0) {
-      alert("Cart is empty. Add items before placing an order.");
-      return;
-    }
+    if (!userId) return alert("Please login first.");
+    if (!Array.isArray(cart) || cart.length === 0)
+      return alert("Cart is empty.");
 
     setLoading(true);
     setMessage(null);
 
-    try {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const userLocation = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          };
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const userLocation = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        };
 
-          const orderData = {
-            userId,
-            items: cart,
-            totalPrice,
-            customerLocation: userLocation,
-          };
+        const orderData = {
+          userId,
+          items: cart,
+          totalPrice,
+          customerLocation: userLocation,
+        };
 
-          try {
-            const response = await fetch(
-              `https://mern-stack-food-ordering-web-app-2.onrender.com/api/orders`,
-              {
-                method: "POST",
-                credentials: "include",
-                mode: "cors",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(orderData),
-              }
-            );
-
-            const data = await response.json();
-            if (response.ok) {
-              setMessage("✅ Order placed successfully!");
-              setCart([]);
-              localStorage.removeItem("cart");
-            } else {
-              setMessage(`❌ Failed to place order: ${data.error || "Unknown error"}`);
+        try {
+          const response = await fetch(
+            `https://mern-stack-food-ordering-web-app-2.onrender.com/api/orders`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              mode: "cors",
+              body: JSON.stringify(orderData),
             }
-          } catch (error) {
-            setMessage("❌ Something went wrong. Check console.");
-            console.error("Order error:", error);
-          }
+          );
 
-          setLoading(false);
-        },
-        (error) => {
-          setLoading(false);
-          alert("⚠ Location access denied. Please enable GPS and try again.",error);
+          const data = await response.json();
+          if (response.ok) {
+            setMessage("✅ Order placed successfully!");
+            setCart([]);
+            localStorage.removeItem(`cart_${userId}`);
+          } else {
+            setMessage(`❌ Failed: ${data.error || "Unknown error"}`);
+          }
+        } catch (err) {
+          setMessage("❌ Error placing order.");
+          console.error(err);
         }
-      );
-    } catch (error) {
-      setLoading(false);
-      alert("An unexpected error occurred.", error);
-    }
+
+        setLoading(false);
+      },
+      () => {
+        setLoading(false);
+        alert("⚠ Location access denied.");
+      }
+    );
   };
 
   return (
@@ -297,7 +282,7 @@ Cart.propTypes = {
   setCart: PropTypes.func.isRequired,
 };
 
-// ✅ Default props to prevent crashes
+// ✅ Default props
 Cart.defaultProps = {
   cart: [],
 };

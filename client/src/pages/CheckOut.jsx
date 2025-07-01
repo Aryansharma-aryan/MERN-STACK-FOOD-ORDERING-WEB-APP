@@ -60,6 +60,14 @@ const Checkout = () => {
         order_id: order.id,
         handler: function (paymentResponse) {
           alert(`Payment Successful! Payment ID: ${paymentResponse.razorpay_payment_id}`);
+
+          // ✅ Clear cart for this user
+          const userId = localStorage.getItem("userId");
+          if (userId) {
+            localStorage.removeItem(`cart_${userId}`);
+          }
+
+          // Navigate to receipt page
           navigate(`/payment/${paymentResponse.razorpay_payment_id}`);
         },
         prefill: {

@@ -18,10 +18,17 @@ export default function OrderPage() {
       try {
         const userId = localStorage.getItem("userId");
         if (!userId) throw new Error("User ID not found. Please log in.");
+const response = await axios.get(
+  `https://mern-stack-food-ordering-web-app-2.onrender.com/api/orders/${userId}`,
+  {
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${localStorage.getItem("authToken")}`
+    },
+    withCredentials: true
+  }
+);
 
-const response = await axios.get(`https://mern-stack-food-ordering-web-app-2.onrender.com/api/orders/${userId}`, {
-    headers: { "Content-Type": "application/json" },
-});
 
 
         setOrders(response.data);
@@ -50,7 +57,16 @@ const response = await axios.get(`https://mern-stack-food-ordering-web-app-2.onr
 
   try {
     // Access the API URL from your .env file
-    await axios.delete(`https://mern-stack-food-ordering-web-app-2.onrender.com/orders/${orderId}`);
+   await axios.delete(
+  `https://mern-stack-food-ordering-web-app-2.onrender.com/api/orders/${orderId}`,
+  {
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem("authToken")}`
+    },
+    withCredentials: true
+  }
+);
+
     setOrders((prevOrders) => prevOrders.filter((order) => order._id !== orderId));
   } catch (err) {
     console.error("Error deleting order:", err);
