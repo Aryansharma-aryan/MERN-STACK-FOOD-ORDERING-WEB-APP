@@ -13,7 +13,6 @@ const Checkout = () => {
   useEffect(() => {
     const incomingTotal = location?.state?.cartTotal;
 
-    // Safely set cart total
     if (typeof incomingTotal === "number" && !isNaN(incomingTotal)) {
       setCartTotal(incomingTotal);
     } else {
@@ -21,7 +20,6 @@ const Checkout = () => {
       setCartTotal(0);
     }
 
-    // Load Razorpay script
     const loadRazorpayScript = () => {
       const script = document.createElement("script");
       script.src = "https://checkout.razorpay.com/v1/checkout.js";
@@ -35,12 +33,21 @@ const Checkout = () => {
 
   const handlePayment = async () => {
     try {
-      const amountInPaise = cartTotal * 100; // convert ₹ to paise
+      const amountInPaise = cartTotal * 100;
+      const token = localStorage.getItem("authToken");
+
+      if (!token) {
+        alert("You are not logged in. Please login to continue.");
+        return;
+      }
 
       const response = await axios.post(
         `https://mern-stack-food-ordering-web-app-2.onrender.com/api/create-order`,
+        { amount: amountInPaise },
         {
-          amount: amountInPaise,
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         }
       );
 
@@ -61,13 +68,11 @@ const Checkout = () => {
         handler: function (paymentResponse) {
           alert(`Payment Successful! Payment ID: ${paymentResponse.razorpay_payment_id}`);
 
-          // ✅ Clear cart for this user
           const userId = localStorage.getItem("userId");
           if (userId) {
             localStorage.removeItem(`cart_${userId}`);
           }
 
-          // Navigate to receipt page
           navigate(`/payment/${paymentResponse.razorpay_payment_id}`);
         },
         prefill: {
