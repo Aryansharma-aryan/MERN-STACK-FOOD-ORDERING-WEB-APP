@@ -327,35 +327,49 @@ const verifyPayment = async (req, res) => {
   }
 };
 const getPayments = async (req, res) => {
-  const { paymentId } = req.params; // Extract paymentId from request params
+  const { paymentId } = req.params;
 
   if (!paymentId) {
     return res.status(400).json({ error: "Invalid request. No payment ID found." });
   }
 
   try {
-    const payment = await razorpay.payments.fetch(paymentId); // Fetch payment details
+    const payment = await razorpay.payments.fetch(paymentId);
 
     if (!payment) {
       return res.status(404).json({ error: "Payment not found." });
     }
 
-    // Convert the created_at timestamp to a readable date format
-    const paymentDate = new Date(payment.created_at * 1000).toLocaleDateString();
+    // Example mock data for demo purpose (replace with real DB lookup in real app)
+    const mockOrder = {
+      paymentId: payment.id,
+      totalAmount: payment.amount / 100,
+      paidAt: new Date(payment.created_at * 1000),
+      user: "arsharma2951@gmail.com", // Ideally from your DB
+      paymentMethod: payment.method || "UPI",
+      items: [
+        {
+          name: "Paneer Pizza",
+          image: "https://via.placeholder.com/60",
+          price: 250,
+          quantity: 1
+        },
+        {
+          name: "Burger Combo",
+          image: "https://via.placeholder.com/60",
+          price: 275,
+          quantity: 1
+        }
+      ]
+    };
 
-    // Return the payment details as JSON
-    res.json({
-      paymentId: payment.id,  // Make sure the payment ID is being sent
-      amount: (payment.amount / 100).toFixed(2),  // Convert paise to rupees
-
-      status: payment.status,
-      paymentDate: paymentDate,  // Use the formatted date
-    });
+    res.json({ payment: mockOrder });
   } catch (error) {
     console.error("Error fetching payment details:", error);
     res.status(500).json({ error: "Error fetching payment details." });
   }
 };
+
 const review = async (req, res) => {
   try {
     const { name, rating, comment } = req.body;

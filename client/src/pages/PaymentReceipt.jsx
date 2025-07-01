@@ -13,13 +13,21 @@ export default function PaymentReceipt() {
   useEffect(() => {
     const fetchPayment = async () => {
       try {
-        const response = await axios.get(
-          `https://mern-stack-food-ordering-web-app-2.onrender.com/api/payment/${paymentId}`
-        );
-        setPayment(response.data.payment);
+       const token = localStorage.getItem("authToken"); // or sessionStorage
+
+const response = await axios.get(
+  `https://mern-stack-food-ordering-web-app-2.onrender.com/api/payment/${paymentId}`,
+  {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  }
+);
+
+        setPayment(response.data);
       } catch (err) {
         console.error("Error fetching payment:", err);
-        setError("Failed to load payment details.");
+        setError("❌ No payment found.");
       } finally {
         setLoading(false);
       }
@@ -31,40 +39,12 @@ export default function PaymentReceipt() {
   const downloadInvoice = () => {
     const doc = new jsPDF();
     doc.setFontSize(16);
-    doc.text("🧾 Payment Receipt - Food Mania", 20, 20);
+    doc.text("🧾 Food Mania - Payment Receipt", 20, 20);
     doc.setFontSize(12);
-
-    doc.text(
-      `Order ID: ${
-        payment?.orderId
-          ? payment.orderId
-          : payment?.paidAt
-          ? new Date(payment.paidAt).toLocaleString()
-          : "N/A"
-      }`,
-      20,
-      40
-    );
-    doc.text(`Payment ID: ${payment?.paymentId || "N/A"}`, 20, 50);
-    doc.text(`User: ${payment?.user || "N/A"}`, 20, 60);
-    doc.text(
-      `Amount Paid: ₹${typeof payment?.totalAmount === "number" ? payment.totalAmount.toFixed(2) : "N/A"}`,
-      20,
-      70
-    );
-    doc.text(
-      `Payment Date: ${
-        payment?.paidAt ? new Date(payment.paidAt).toLocaleString() : "N/A"
-      }`,
-      20,
-      80
-    );
-    doc.text(
-      `Payment Method: ${payment?.paymentMethod || "PhonePe / GPay / UPI"}`,
-      20,
-      90
-    );
-
+    doc.text(`Payment ID: ${payment?.paymentId || "N/A"}`, 20, 40);
+    doc.text(`Status: ${payment?.status || "N/A"}`, 20, 50);
+    doc.text(`Amount Paid: ₹${payment?.amount || "N/A"}`, 20, 60);
+    doc.text(`Date: ${payment?.paymentDate || "N/A"}`, 20, 70);
     doc.save("invoice.pdf");
   };
 
@@ -72,7 +52,7 @@ export default function PaymentReceipt() {
     return (
       <div className="text-center mt-5">
         <div className="spinner-border text-primary" role="status"></div>
-        <p>Loading payment details...</p>
+        <p className="mt-3">Loading payment details...</p>
       </div>
     );
   }
@@ -80,56 +60,37 @@ export default function PaymentReceipt() {
   if (error || !payment) {
     return (
       <div className="text-center mt-5 text-danger fw-bold">
-        {error || "No payment found."}
+        ❌ No payment found.
       </div>
     );
   }
 
   return (
-    <div className="container mt-5">
-      <div className="card shadow border-0">
+    <div className="container my-5">
+      <div className="card shadow-lg border-0">
         <div className="card-header bg-success text-white text-center">
-          <h3>✅ Payment Successful!</h3>
+          <h3>✅ Payment Successful</h3>
         </div>
-        <div className="card-body text-center">
-          <h5>
-            <strong>Order ID:</strong>{" "}
-            {payment.orderId
-              ? payment.orderId
-              : payment?.paidAt
-              ? new Date(payment.paidAt).toLocaleString()
-              : "N/A"}
-          </h5>
-          <p>
-            <strong>Payment ID:</strong> {payment.paymentId}
-          </p>
-          <p>
-            <strong>User:</strong> {payment.user}
-          </p>
-          <p>
-            <strong>Amount Paid:</strong>{" "}
-            ₹
-            {typeof payment.totalAmount === "number"
-              ? payment.totalAmount.toFixed(2)
-              : "N/A"}
-          </p>
-          <p>
-            <strong>Paid At:</strong>{" "}
-            {payment.paidAt
-              ? new Date(payment.paidAt).toLocaleString()
-              : "N/A"}
-          </p>
-          <p>
-            <strong>Payment Method:</strong>{" "}
-            {payment.paymentMethod || "PhonePe / GPay / UPI"}
-          </p>
+        <div className="card-body">
+          <div className="row mb-3">
+            <div className="col-md-6">
+              <p><strong>Payment ID:</strong> {payment.paymentId}</p>
+              <p><strong>Status:</strong> {payment.status}</p>
+            </div>
+            <div className="col-md-6 text-md-end">
+              <p><strong>Date:</strong> {payment.paymentDate}</p>
+              <p><strong>Amount Paid:</strong> ₹{payment.amount}</p>
+            </div>
+          </div>
 
-          <button
-            className="btn btn-outline-primary mt-3"
-            onClick={downloadInvoice}
-          >
-            🧾 Download Invoice
-          </button>
+          <div className="text-end mt-4">
+            <button
+              className="btn btn-outline-primary"
+              onClick={downloadInvoice}
+            >
+              🧾 Download Invoice
+            </button>
+          </div>
         </div>
       </div>
     </div>

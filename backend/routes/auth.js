@@ -21,7 +21,7 @@ router.get("/orders/:userId", authMiddleware, getOrder);
 router.delete("/orders/:orderId", authMiddleware, deleteOrder);
 router.post("/create-order", authMiddleware, createOrder);
 router.post("/verify-payment", authMiddleware, verifyPayment);
-router.get("/payment/:paymentId", authMiddleware, getPayments);
+router.get("/payment/:paymentId",  getPayments);
 
 // Reviews & Favorites (Only logged-in users)
 router.post("/:id/review", authMiddleware, review);
