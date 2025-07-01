@@ -31,65 +31,64 @@ const Checkout = () => {
     loadRazorpayScript();
   }, [location.state]);
 
-  const handlePayment = async () => {
-    try {
-      const amountInPaise = cartTotal * 100;
-      const token = localStorage.getItem("authToken");
+const handlePayment = async () => {
+  try {
+    const amountInPaise = cartTotal * 100;
 
-      if (!token) {
-        alert("You are not logged in. Please login to continue.");
-        return;
-      }
+    const token = localStorage.getItem("authToken"); // ⬅️ get the token from localStorage
 
-      const response = await axios.post(
-        `https://mern-stack-food-ordering-web-app-2.onrender.com/api/create-order`,
-        { amount: amountInPaise },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      if (!response.data.success || !response.data.order || !response.data.order.id) {
-        alert("Failed to initiate payment.");
-        return;
-      }
-
-      const { order } = response.data;
-
-      const options = {
-        key: "rzp_test_IKvri4H04w6Khy",
-        amount: order.amount,
-        currency: order.currency,
-        name: "Food Mania",
-        description: "Food Order Payment",
-        order_id: order.id,
-        handler: function (paymentResponse) {
-          alert(`Payment Successful! Payment ID: ${paymentResponse.razorpay_payment_id}`);
-
-          const userId = localStorage.getItem("userId");
-          if (userId) {
-            localStorage.removeItem(`cart_${userId}`);
-          }
-
-          navigate(`/payment/${paymentResponse.razorpay_payment_id}`);
-        },
-        prefill: {
-          name: "Aryan Sharma",
-          email: "arsharma2951@gmail.com",
-          contact: "+91 9518403808",
-        },
-        theme: { color: "#F37254" },
-      };
-
-      const razorpay = new window.Razorpay(options);
-      razorpay.open();
-    } catch (error) {
-      console.error("Payment Error:", error.response?.data || error.message);
-      alert("Payment failed: " + (error.response?.data?.error || error.message));
+    if (!token) {
+      alert("You must be logged in to make a payment.");
+      return;
     }
-  };
+
+    const response = await axios.post(
+      `https://mern-stack-food-ordering-web-app-2.onrender.com/api/create-order`,
+      { amount: amountInPaise },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`, // ⬅️ send token in Authorization header
+        },
+      }
+    );
+
+    if (!response.data.success || !response.data.order?.id) {
+      alert("Failed to initiate payment.");
+      return;
+    }
+
+    const { order } = response.data;
+
+    const options = {
+      key: "rzp_test_IKvri4H04w6Khy",
+      amount: order.amount,
+      currency: order.currency,
+      name: "Food Mania",
+      description: "Food Order Payment",
+      order_id: order.id,
+      handler: function (paymentResponse) {
+        alert(`Payment Successful! Payment ID: ${paymentResponse.razorpay_payment_id}`);
+        const userId = localStorage.getItem("userId");
+        if (userId) {
+          localStorage.removeItem(`cart_${userId}`);
+        }
+        navigate(`/payment/${paymentResponse.razorpay_payment_id}`);
+      },
+      prefill: {
+        name: "Aryan Sharma",
+        email: "arsharma2951@gmail.com",
+        contact: "+91 9518403808",
+      },
+      theme: { color: "#F37254" },
+    };
+
+    const razorpay = new window.Razorpay(options);
+    razorpay.open();
+  } catch (error) {
+    console.error("Payment Error:", error.response?.data || error.message);
+    alert("Payment failed: " + (error.response?.data?.message || error.message));
+  }
+};
 
   return (
     <div className="container mt-5">
