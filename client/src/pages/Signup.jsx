@@ -1,26 +1,21 @@
-import React, { useState } from "react";
+import React from "react";
+import { useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 
 export default function Signup() {
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({ name: "", email: "", password: "" });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-    setError("");
-    setSuccess(false);
-  };
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-    setSuccess(false);
-
+  const onSubmit = async (formData) => {
     try {
       const response = await fetch(
         `https://mern-stack-food-ordering-web-app-2.onrender.com/api/signup`,
@@ -36,17 +31,22 @@ export default function Signup() {
       const data = await response.json();
 
       if (response.ok) {
-        setFormData({ name: "", email: "", password: "" });
-        setSuccess(true);
-        setTimeout(() => navigate("/login"), 1500); // Redirect after 1.5s
+        toast.success("🎉 Signup successful! Redirecting to login...", {
+          position: "top-center",
+          autoClose: 1500,
+        });
+        reset();
+        setTimeout(() => navigate("/login"), 1500);
       } else {
-        setError(data.message || "Signup failed. Please try again.");
+        toast.error(data.message || "❌ Signup failed. Please try again.", {
+          position: "top-center",
+        });
       }
     } catch (err) {
       console.error("Signup Error:", err);
-      setError("Something went wrong. Please try again later.");
-    } finally {
-      setLoading(false);
+      toast.error("❌ Something went wrong. Please try again later.", {
+        position: "top-center",
+      });
     }
   };
 
@@ -55,6 +55,7 @@ export default function Signup() {
       className="d-flex justify-content-center align-items-center vh-100"
       style={{ backgroundColor: "#2C3E50" }}
     >
+      <ToastContainer />
       <div
         className="card p-4 shadow-lg"
         style={{
@@ -66,69 +67,67 @@ export default function Signup() {
       >
         <h3 className="text-center mb-4">Create Account</h3>
 
-        {error && (
-          <div className="alert alert-danger py-2 text-center" role="alert">
-            {error}
-          </div>
-        )}
-
-        {success && (
-          <div className="alert alert-success py-2 text-center" role="alert">
-            Signup successful! Redirecting to login...
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit(onSubmit)} noValidate>
           <div className="mb-3">
             <label className="form-label">Full Name</label>
             <input
               type="text"
-              name="name"
               className="form-control"
               placeholder="Enter your name"
-              value={formData.name}
-              onChange={handleChange}
-              required
+              {...register("name", { required: "Name is required" })}
+              disabled={isSubmitting}
               style={{ borderRadius: "10px" }}
-              disabled={loading}
             />
+            {errors.name && <p className="text-danger mt-1">{errors.name.message}</p>}
           </div>
+
           <div className="mb-3">
             <label className="form-label">Email</label>
             <input
               type="email"
-              name="email"
               className="form-control"
               placeholder="Enter your email"
-              value={formData.email}
-              onChange={handleChange}
-              required
+              {...register("email", {
+                required: "Email is required",
+                pattern: {
+                  value: /^\S+@\S+$/i,
+                  message: "Invalid email format",
+                },
+              })}
+              disabled={isSubmitting}
               style={{ borderRadius: "10px" }}
-              disabled={loading}
             />
+            {errors.email && <p className="text-danger mt-1">{errors.email.message}</p>}
           </div>
+
           <div className="mb-3">
             <label className="form-label">Password</label>
             <input
               type="password"
-              name="password"
               className="form-control"
               placeholder="Enter password"
-              value={formData.password}
-              onChange={handleChange}
-              required
+              {...register("password", {
+                required: "Password is required",
+                minLength: {
+                  value: 6,
+                  message: "Password must be at least 6 characters",
+                },
+              })}
+              disabled={isSubmitting}
               style={{ borderRadius: "10px" }}
-              disabled={loading}
             />
+            {errors.password && <p className="text-danger mt-1">{errors.password.message}</p>}
           </div>
+
           <button
             type="submit"
             className="btn w-100 text-white"
             style={{ backgroundColor: "#E67E22", borderRadius: "10px" }}
-            disabled={loading}
+            disabled={isSubmitting}
           >
-            {loading ? "Signing Up..." : "Sign Up"}
+            {isSubmitting ? "Signing Up..." : "Sign Up"}
           </button>
+
           <div className="text-center mt-3">
             <small>
               Already have an account?{" "}

@@ -88,5 +88,5 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: "Server error occurred" });
 });
 
-const PORT = process.env.PORT || 3101;
+const PORT = process.env.PORT || 3102;
 server.listen(PORT, "0.0.0.0", () => console.log(`🚀 Running on port ${PORT}`));

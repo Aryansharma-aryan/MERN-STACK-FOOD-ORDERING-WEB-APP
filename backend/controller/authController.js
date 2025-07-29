@@ -266,17 +266,19 @@ const deleteOrder = async (req, res) => {
 
 
 
+
+
 const razorpay = new Razorpay({
-  key_id: "rzp_test_IKvri4H04w6Khy",
-  key_secret: "ULNwyV4wHxdKENfjceXWCosW"
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
-// Create an order
+
 const createOrder = async (req, res) => {
   try {
-    const { amount } = req.body; // amount in rupees
+    const { amount } = req.body;
     if (!amount) return res.status(400).json({ error: "Amount is required" });
 
-    const amountInPaise = amount; // ✅ Convert rupees to paise
+    const amountInPaise = amount * 100;
 
     const order = await razorpay.orders.create({
       amount: amountInPaise,
@@ -284,13 +286,14 @@ const createOrder = async (req, res) => {
       payment_capture: 1,
     });
 
-    // Send the order details back along with the order ID to the frontend
-    res.json({ success: true, order, paymentId: order.id });
+    res.json({ success: true, order });
   } catch (error) {
     console.error("Error creating order:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
+
 // Verify payment signature
 const verifyPayment = async (req, res) => {
   try {
