@@ -33,7 +33,9 @@ const Checkout = () => {
       const response = await axios.post(
         `${import.meta.env.VITE_API_URL}/api/create-order`,
         { amount: cartTotal },
-        { headers: { "Content-Type": "application/json" } }
+        { headers: { "Content-Type": "application/json" },
+            Authorization: `Bearer ${token}`, // ← send token
+ }
       );
 
       const order = response.data.order;
