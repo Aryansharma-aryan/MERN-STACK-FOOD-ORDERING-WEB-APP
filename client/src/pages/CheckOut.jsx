@@ -33,9 +33,12 @@ const Checkout = () => {
       const response = await axios.post(
         `${import.meta.env.VITE_API_URL}/api/create-order`,
         { amount: cartTotal },
-        { headers: { "Content-Type": "application/json" },
-            Authorization: `Bearer ${token}`, // ← send token
- }
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`, // ✅ Send token in header
+          },
+        }
       );
 
       const order = response.data.order;
@@ -50,12 +53,17 @@ const Checkout = () => {
         order_id: order.id, // Razorpay order ID
 
         handler: async function (paymentResponse) {
-          // 3️⃣ Verify payment on backend
           try {
+            // 3️⃣ Verify payment on backend
             const verifyRes = await axios.post(
               `${import.meta.env.VITE_API_URL}/api/verify-payment`,
               paymentResponse,
-              { headers: { "Content-Type": "application/json" } }
+              {
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${token}`, // ✅ Send token here as well
+                },
+              }
             );
 
             if (verifyRes.data.success) {
