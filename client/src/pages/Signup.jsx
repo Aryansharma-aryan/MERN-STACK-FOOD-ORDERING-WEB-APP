@@ -3,126 +3,102 @@ import { useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import "bootstrap/dist/css/bootstrap.min.css";
 
 export default function Signup() {
   const navigate = useNavigate();
+  const API_URL = import.meta.env.VITE_API_URL;
 
   const {
     register,
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm();
+  } = useForm({
+    mode: "onSubmit",
+    reValidateMode: "onBlur",
+  });
 
   const onSubmit = async (formData) => {
     try {
-      const response = await fetch(
-        `https://mern-stack-food-ordering-web-app-2.onrender.com/api/signup`,
-        {
-          method: "POST",
-          credentials: "include",
-          mode: "cors",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(formData),
-        }
-      );
+      const response = await fetch(`${API_URL}/api/signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(formData),
+      });
 
       const data = await response.json();
 
-      if (response.ok) {
-        toast.success("🎉 Signup successful! Redirecting to login...", {
-          position: "top-center",
-          autoClose: 1500,
-        });
-        reset();
-        setTimeout(() => navigate("/login"), 1500);
-      } else {
-        toast.error(data.message || "❌ Signup failed. Please try again.", {
-          position: "top-center",
-        });
+      if (!response.ok) {
+        toast.error(data.message || "Signup failed.");
+        return;
       }
-    } catch (err) {
-      console.error("Signup Error:", err);
-      toast.error("❌ Something went wrong. Please try again later.", {
-        position: "top-center",
-      });
+
+      toast.success("🎉 Signup successful!");
+      reset();
+      setTimeout(() => navigate("/login"), 1200);
+    } catch (error) {
+      toast.error("Server error. Try again later.",error);
     }
   };
 
   return (
-    <div
-      className="d-flex justify-content-center align-items-center vh-100"
-      style={{ backgroundColor: "#2C3E50" }}
-    >
+    <div className="d-flex justify-content-center align-items-center vh-100 bg-dark">
       <ToastContainer />
-      <div
-        className="card p-4 shadow-lg"
-        style={{
-          width: "350px",
-          borderRadius: "15px",
-          backgroundColor: "#34495E",
-          color: "#fff",
-        }}
-      >
+
+      <div className="card p-4 shadow-lg bg-secondary text-white" style={{ width: 350, borderRadius: 15 }}>
         <h3 className="text-center mb-4">Create Account</h3>
 
         <form onSubmit={handleSubmit(onSubmit)} noValidate>
+          {/* Name */}
           <div className="mb-3">
             <label className="form-label">Full Name</label>
             <input
               type="text"
-              className="form-control"
+              className="form-control rounded-3"
               placeholder="Enter your name"
-              {...register("name", { required: "Name is required" })}
               disabled={isSubmitting}
-              style={{ borderRadius: "10px" }}
+              {...register("name", { required: "Name is required" })}
             />
-            {errors.name && <p className="text-danger mt-1">{errors.name.message}</p>}
+            {errors.name && <p className="text-danger small">{errors.name.message}</p>}
           </div>
 
+          {/* Email */}
           <div className="mb-3">
             <label className="form-label">Email</label>
             <input
               type="email"
-              className="form-control"
-              placeholder="Enter your email"
+              className="form-control rounded-3"
+              placeholder="Enter email"
+              disabled={isSubmitting}
               {...register("email", {
                 required: "Email is required",
-                pattern: {
-                  value: /^\S+@\S+$/i,
-                  message: "Invalid email format",
-                },
+                pattern: { value: /^\S+@\S+$/i, message: "Invalid email format" },
               })}
-              disabled={isSubmitting}
-              style={{ borderRadius: "10px" }}
             />
-            {errors.email && <p className="text-danger mt-1">{errors.email.message}</p>}
+            {errors.email && <p className="text-danger small">{errors.email.message}</p>}
           </div>
 
+          {/* Password */}
           <div className="mb-3">
             <label className="form-label">Password</label>
             <input
               type="password"
-              className="form-control"
+              className="form-control rounded-3"
               placeholder="Enter password"
+              disabled={isSubmitting}
               {...register("password", {
                 required: "Password is required",
-                minLength: {
-                  value: 6,
-                  message: "Password must be at least 6 characters",
-                },
+                minLength: { value: 6, message: "Min 6 characters" },
               })}
-              disabled={isSubmitting}
-              style={{ borderRadius: "10px" }}
             />
-            {errors.password && <p className="text-danger mt-1">{errors.password.message}</p>}
+            {errors.password && <p className="text-danger small">{errors.password.message}</p>}
           </div>
 
+          {/* Button */}
           <button
             type="submit"
-            className="btn w-100 text-white"
-            style={{ backgroundColor: "#E67E22", borderRadius: "10px" }}
+            className="btn btn-warning w-100 rounded-3"
             disabled={isSubmitting}
           >
             {isSubmitting ? "Signing Up..." : "Sign Up"}
@@ -131,7 +107,7 @@ export default function Signup() {
           <div className="text-center mt-3">
             <small>
               Already have an account?{" "}
-              <Link to="/login" className="text-warning">
+              <Link to="/login" className="text-warning text-decoration-none">
                 Login
               </Link>
             </small>

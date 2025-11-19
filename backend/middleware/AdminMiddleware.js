@@ -1,37 +1,64 @@
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+// middleware/AdminMiddleware.js
 
-const JWT_SECRET = "TFYUG67T67T762"; 
+const jwt = require("jsonwebtoken");
+const User = require("../models/User");
 
-// Middleware to check if the user is an admin
+const JWT_SECRET = process.env.JWT_SECRET || "TFYUG67T67T762";
+
 const isAdmin = async (req, res, next) => {
   try {
-    // Get token from the request cookies or headers
-    const token = req.cookies.token || req.headers.authorization?.split(" ")[1];
-    if (!token) {
-      return res.status(401).json({ message: "No token provided. Unauthorized!" });
+    let token;
+
+    // 1️⃣ Get token from Authorization header (preferred)
+    if (
+      req.headers.authorization &&
+      req.headers.authorization.startsWith("Bearer ")
+    ) {
+      token = req.headers.authorization.split(" ")[1];
     }
 
-    // Verify the token
+    // 2️⃣ Or from cookies
+    else if (req.cookies?.token) {
+      token = req.cookies.token;
+    }
+
+    // 3️⃣ If token missing → unauthorized
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized! Token missing.",
+      });
+    }
+
+    // 4️⃣ Verify token
     const decoded = jwt.verify(token, JWT_SECRET);
 
-    // Get user from database
-    const user = await User.findById(decoded.id);
+    // 5️⃣ Fetch user from DB
+    const user = await User.findById(decoded.id).select("role name email");
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
     }
 
-    // Check if the user is an admin
-    if (user.role !== 'admin') {
-      return res.status(403).json({ message: "Forbidden! You do not have admin rights." });
+    // 6️⃣ Check role
+    if (user.role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Access Denied! Admins only.",
+      });
     }
 
-    // Attach user to the request object for future use
+    // 7️⃣ Attach user to req for future use
     req.user = user;
     next();
   } catch (error) {
-    console.error("Error checking admin role:", error);
-    res.status(500).json({ message: "Internal Server Error" });
+    console.error("Admin Middleware Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error.",
+    });
   }
 };
 

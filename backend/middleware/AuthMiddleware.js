@@ -1,12 +1,14 @@
 // middleware/authMiddleware.js
-const jwt= require("jsonwebtoken")
 
+const jwt = require("jsonwebtoken");
+
+// Use environment variable or fallback for development
 const JWT_SECRET = process.env.JWT_SECRET || "TFYUG67T67T762";
 
 const authMiddleware = (req, res, next) => {
   let token;
 
-  // 1. Check Authorization header (preferred)
+  // 1️⃣ Check "Authorization: Bearer <token>" header
   if (
     req.headers.authorization &&
     req.headers.authorization.startsWith("Bearer ")
@@ -14,27 +16,36 @@ const authMiddleware = (req, res, next) => {
     token = req.headers.authorization.split(" ")[1];
   }
 
-  // 2. Or check cookies if token stored in cookie
+  // 2️⃣ Or check cookies if token stored in cookies
   else if (req.cookies?.token) {
     token = req.cookies.token;
   }
 
-  // 3. If no token found
+  // 3️⃣ No token → Unauthorized
   if (!token) {
-    return res.status(401).json({ message: "Access denied. Token missing." });
+    return res.status(401).json({
+      success: false,
+      message: "Access denied. Token is missing.",
+    });
   }
 
-  // 4. Verify token
   try {
+    // 4️⃣ Verify token
     const decoded = jwt.verify(token, JWT_SECRET);
+
+    // Attach user info to request
     req.user = {
       id: decoded.id,
       role: decoded.role || "user",
     };
+
     next();
   } catch (error) {
-    return res.status(403).json({ message: "Invalid or expired token." });
+    return res.status(403).json({
+      success: false,
+      message: "Invalid or expired token.",
+    });
   }
 };
 
-module.exports= authMiddleware;
+module.exports = authMiddleware;

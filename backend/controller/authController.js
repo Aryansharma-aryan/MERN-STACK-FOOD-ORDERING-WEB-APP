@@ -1,74 +1,104 @@
+// controllers/appController.js
 const mongoose = require("mongoose");
-const Food = require('../models/FoodData');  // path may vary
-const { check, validationResult } = require("express-validator");
-const User = require("../models/User");
-const Order = require("../models/OrderModel");
-
+const { validationResult } = require("express-validator");
 const jwt = require("jsonwebtoken");
 const Razorpay = require("razorpay");
-const Payment=require("../models/PaymentModel")
 const crypto = require("crypto");
 
+// Models (adjust paths if your structure differs)
+const User = require("../models/User");
+const Food = require("../models/Food");
+const Order = require("../models/Order");
+const Payment = require("../models/Payment");
 
-
-const JWT_SECRET = "TFYUG67T67T762"; // Move to .env file later
-
-/**
- * Sign up a new user
- */
+// Utils
 const bcrypt = require("bcryptjs");
 
+// Load env config (make sure to call require('dotenv').config() in server entry)
+const JWT_SECRET = process.env.JWT_SECRET;
+const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID;
+const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
 
+if (!JWT_SECRET) {
+  console.warn("⚠️ JWT_SECRET is not set in environment variables.");
+}
+if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
+  console.warn("⚠️ Razorpay keys are not set in environment variables.");
+}
 
+// Initialize Razorpay instance
+const razorpay = new Razorpay({
+  key_id: RAZORPAY_KEY_ID,
+  key_secret: RAZORPAY_KEY_SECRET,
+});
 
-const signup = async (req, res) => {
+/**
+ * Signup - create a new user
+ * NOTE: include `next` as third param to forward errors to express error handler
+ */
+const signup = async (req, res, next) => {
   try {
-    // 1. Validate input
+    // Validate request inputs (if express-validator used in route)
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    // 2. Extract data
     const { name, email, password, role = "user" } = req.body;
 
-    // 3. Check if user exists
-    if (await User.findOne({ email })) {
+    // Basic checks
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: "Name, email and password are required." });
+    }
+
+    // Check existing user
+    const existing = await User.findOne({ email });
+    if (existing) {
       return res.status(400).json({ message: "User already exists." });
     }
 
-    // 4. Hash the user's password
+    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 5. Create the new user
-    const newUser = new User({ name, email, password: hashedPassword, role });
+    // Create user
+    const newUser = new User({
+      name,
+      email,
+      password: hashedPassword,
+      role,
+    });
+
     await newUser.save();
 
-    // 6. OPTIONAL: create the admin user once
-    const adminEmail = 'arsharma2951@gmail.com';
-    const existingAdmin = await User.findOne({ email: adminEmail });
-
-    if (!existingAdmin) {
-      const adminPass = process.env.ADMIN_PASS || 'SecureAdminPass123';
-      const adminHash = await bcrypt.hash(adminPass, 10);
-      const adminUser = new User({
-        name: 'Aryan Sharma',
-        email: adminEmail,
-        password: adminHash,
-        role: 'admin',
-      });
-      await adminUser.save();
-      console.log('✅ Admin account created');
+    // Optional: create admin user if not exists (run only once)
+    try {
+      const adminEmail = process.env.ADMIN_EMAIL;
+      const adminPass = process.env.ADMIN_PASS;
+      if (adminEmail && adminPass) {
+        const adminExists = await User.findOne({ email: adminEmail });
+        if (!adminExists) {
+          const adminHash = await bcrypt.hash(adminPass, 10);
+          const adminUser = new User({
+            name: process.env.ADMIN_NAME || "Admin",
+            email: adminEmail,
+            password: adminHash,
+            role: "admin",
+          });
+          await adminUser.save();
+          console.log("✅ Admin account created (from env)");
+        }
+      }
+    } catch (adminErr) {
+      // Do not block signup if admin creation fails
+      console.error("Admin creation check error:", adminErr);
     }
 
-    // 7. Create JWT for new user
-    const token = jwt.sign(
-      { id: newUser._id, role: newUser.role },
-      JWT_SECRET,
-      { expiresIn: "1h" }
-    );
+    // Create JWT token
+    const token = jwt.sign({ id: newUser._id, role: newUser.role }, JWT_SECRET, {
+      expiresIn: "1h",
+    });
 
-    // 8. Send cookie & response
+    // Set secure cookie (optional)
     res.cookie("token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -76,411 +106,466 @@ const signup = async (req, res) => {
       maxAge: 3600000,
     });
 
-    return res.status(201).json({ message: "User created successfully", token });
-
+    return res.status(201).json({
+      message: "User created successfully",
+      token,
+      userId: newUser._id,
+      role: newUser.role,
+    });
   } catch (error) {
-    next(error); // Pass to Express error handler
+    console.error("Signup error:", error);
+    return next(error);
   }
 };
 
+/**
+ * Login user
+ */
 const loginUser = async (req, res) => {
   try {
-    // ✅ Validate input
+    // Validate
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ message: "Invalid input", errors: errors.array() });
     }
 
     const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password are required." });
+    }
 
-    // ✅ Find user by email
     const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(400).json({ message: "User does not exist." });
-    }
+    if (!user) return res.status(400).json({ message: "User does not exist." });
 
-    // ✅ Compare password
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ message: "Invalid password." });
-    }
+    if (!isMatch) return res.status(400).json({ message: "Invalid password." });
 
-    // ✅ Generate JWT with user id and role
-    const token = jwt.sign(
-      { id: user._id, role: user.role },
-      JWT_SECRET,
-      { expiresIn: "1h" }
-    );
+    const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, {
+      expiresIn: "1h",
+    });
 
-    // ✅ Set token in HTTP-only cookie (optional if using localStorage instead)
     res.cookie("token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "Strict",
-      maxAge: 3600000, // 1 hour
+      maxAge: 3600000,
     });
 
-    // ✅ Send response
-    res.status(200).json({
+    return res.status(200).json({
       message: "Login successful",
       userId: user._id,
       role: user.role,
-      token: token
+      token,
     });
-
   } catch (error) {
     console.error("Login error:", error);
-    res.status(500).json({ message: "Internal Server Error" });
+    return res.status(500).json({ message: "Internal Server Error" });
   }
 };
-
-
-
 
 /**
  * Add a single food item
  */
-
-  // foodController.js or wherever addFood is defined
 const addFood = async (req, res) => {
   try {
     const { name, price, description, image } = req.body;
+    if (!name) return res.status(400).json({ message: "Name is required." });
 
-    // Assume you're using a MongoDB model
     const foodItem = new Food({
       name,
-      price,
-      description,
-      image,
+      price: Number(price) || 0,
+      description: description || "",
+      image: image || "",
     });
 
-    await foodItem.save(); // Save food to the database
-    res.status(200).json({ message: "Food item added successfully" });
+    await foodItem.save();
+    return res.status(201).json({ message: "Food item added successfully", food: foodItem });
   } catch (error) {
     console.error("Error adding food item:", error);
-    res.status(500).json({ message: "Error adding food item" });
+    return res.status(500).json({ message: "Error adding food item" });
   }
 };
 
-
 /**
- * Add multiple food items
+ * Add multiple food items (bulk)
  */
 const addBulk = async (req, res) => {
   try {
-    console.log("📌 Received Bulk Food Data:", req.body);
-
     if (!Array.isArray(req.body)) {
-      return res.status(400).json({ message: "❌ Data must be an array" });
+      return res.status(400).json({ message: "Data must be an array of food objects." });
     }
 
-    const foodItems = await Food.insertMany(req.body);
-    res.status(201).json({ message: "✅ Bulk food added!", food: foodItems });
+    // Normalize entries
+    const docs = req.body.map((item) => ({
+      name: item.name,
+      price: Number(item.price) || 0,
+      description: item.description || "",
+      image: item.image || "",
+    }));
+
+    const foodItems = await Food.insertMany(docs);
+    return res.status(201).json({ message: "Bulk food added!", food: foodItems });
   } catch (error) {
-    console.error("❌ Error adding bulk food:", error);
-    res.status(500).json({ message: "❌ Internal Server Error", error });
+    console.error("Error adding bulk food:", error);
+    return res.status(500).json({ message: "Internal Server Error", error: error.message });
   }
 };
 
 /**
- * Fetch all food items
+ * Get all food items
  */
 const getFood = async (req, res) => {
   try {
-    const foods = await Food.find();
-    res.status(200).json(foods);
+    const foods = await Food.find().lean();
+    return res.status(200).json(foods);
   } catch (error) {
-    console.error("❌ Error fetching food:", error);
-    res.status(500).json({ message: "❌ Internal Server Error" });
+    console.error("Error fetching food:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
   }
 };
 
 /**
- * Place a new order
+ * Place an order
+ * Expects: { items, totalPrice, userId, customerLocation }
  */
 const order = async (req, res) => {
   try {
     const { items, totalPrice, userId, customerLocation } = req.body;
 
-    if (!customerLocation || !customerLocation.lat || !customerLocation.lng) {
-      return res.status(400).json({ error: "Customer location is required!" });
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: "Order items are required." });
+    }
+
+    if (!customerLocation || typeof customerLocation.lat !== "number" || typeof customerLocation.lng !== "number") {
+      return res.status(400).json({ error: "Customer location (lat,lng) is required." });
     }
 
     const newOrder = new Order({
       items,
-      totalPrice,
+      totalPrice: Number(totalPrice) || 0,
       userId,
-      customerLocation, // ✅ Ensure it’s saved
+      customerLocation, // store as provided
+      status: "Processing",
+      createdAt: new Date(),
     });
 
     await newOrder.save();
-    res.status(201).json({ message: "Order placed successfully!", order: newOrder });
+    return res.status(201).json({ message: "Order placed successfully!", order: newOrder });
   } catch (error) {
     console.error("Order Error:", error);
-    res.status(500).json({ error: "Error placing order", details: error.message });
+    return res.status(500).json({ error: "Error placing order", details: error.message });
   }
 };
 
 /**
- * Get all orders of a user
+ * Get orders for a user
  */
 const getOrder = async (req, res) => {
   try {
     const userId = req.params.userId;
-    const orders = await Order.find({ userId });
+    if (!userId) return res.status(400).json({ message: "userId required." });
 
-    // Ensure every order has a location
-    const ordersWithLocation = orders.map(order => ({
-      ...order.toObject(),
-      location: order.location || { lat: 28.7041, lng: 77.1025 } // Default location
+    const orders = await Order.find({ userId }).lean();
+
+    // Ensure consistent location field (frontend expects order.location)
+    const ordersWithLocation = orders.map((o) => ({
+      ...o,
+      location: o.customerLocation || o.location || null,
     }));
-    
 
-    res.json(ordersWithLocation);
+    return res.status(200).json(ordersWithLocation);
   } catch (error) {
-    res.status(500).json({ message: "Failed to fetch orders." });
+    console.error("Error fetching orders:", error);
+    return res.status(500).json({ message: "Failed to fetch orders." });
   }
 };
 
-//delete order
+/**
+ * Delete an order by id
+ */
 const deleteOrder = async (req, res) => {
   try {
-    const { orderId } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(orderId)) {
+    const orderId = req.params.orderId || req.params.id;
+    if (!orderId || !mongoose.Types.ObjectId.isValid(orderId)) {
       return res.status(400).json({ error: "Invalid orderId" });
     }
 
     const deletedOrder = await Order.findByIdAndDelete(orderId);
+    if (!deletedOrder) return res.status(404).json({ error: "Order not found" });
 
-    if (!deletedOrder) {
-      return res.status(404).json({ error: "Order not found" });
-    }
-
-    res.json({ message: "Order deleted successfully", orderId });
+    return res.json({ message: "Order deleted successfully", orderId: deletedOrder._id });
   } catch (error) {
-    console.error("❌ Error deleting order:", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-}
-
-
-
-
-
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
-
-const createOrder = async (req, res) => {
-  try {
-    const { amount } = req.body;
-    if (!amount) return res.status(400).json({ error: "Amount is required" });
-
-    const amountInPaise = amount * 100;
-
-    const order = await razorpay.orders.create({
-      amount: amountInPaise,
-      currency: "INR",
-      payment_capture: 1,
-    });
-
-    res.json({ success: true, order });
-  } catch (error) {
-    console.error("Error creating order:", error);
-    res.status(500).json({ error: "Internal Server Error" });
+    console.error("Error deleting order:", error);
+    return res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
+/**
+ * Create Razorpay order (expects amount in rupees)
+ * We convert to paise here (amount * 100)
+ */
+const createOrder = async (req, res) => {
+  try {
+    let { amount } = req.body;
+    if (amount === undefined || amount === null) {
+      return res.status(400).json({ error: "Amount is required" });
+    }
 
-// Verify payment signature
+    amount = Number(amount);
+    if (isNaN(amount) || amount <= 0) {
+      return res.status(400).json({ error: "Invalid amount" });
+    }
+
+    const options = {
+      amount: Math.round(amount * 100), // paise
+      currency: "INR",
+      payment_capture: 1,
+    };
+
+    const order = await razorpay.orders.create(options);
+
+    return res.json({ success: true, order });
+  } catch (error) {
+    console.error("Error creating Razorpay order:", error);
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+/**
+ * Verify payment signature and save payment record
+ * Expects body: { razorpay_order_id, razorpay_payment_id, razorpay_signature, amount, currency }
+ */
 const verifyPayment = async (req, res) => {
   try {
-    console.log("Verifying Payment...", req.body); // Debugging log
-
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, amount, currency } = req.body;
-    const secret = "ULNwyV4wHxdKENfjceXWCosW"; // Replace with your actual Razorpay Secret
 
-    const hmac = crypto.createHmac("sha256", secret);
-    hmac.update(razorpay_order_id + "|" + razorpay_payment_id);
-    const generated_signature = hmac.digest("hex");
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res.status(400).json({ error: "Missing payment fields" });
+    }
 
-    if (generated_signature === razorpay_signature) {
-      // ✅ Save Payment Details in MongoDB
+    const secret = RAZORPAY_KEY_SECRET;
+    if (!secret) {
+      console.error("Razorpay secret not set in env.");
+      return res.status(500).json({ error: "Server misconfiguration" });
+    }
+
+    const generated_hmac = crypto
+      .createHmac("sha256", secret)
+      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+      .digest("hex");
+
+    if (generated_hmac === razorpay_signature) {
+      // Persist to DB
       const payment = new Payment({
         order_id: razorpay_order_id,
         payment_id: razorpay_payment_id,
         signature: razorpay_signature,
-        amount,
-        currency,
+        amount: amount || 0,
+        currency: currency || "INR",
         status: "success",
         createdAt: new Date(),
       });
 
       await payment.save();
 
-      res.json({ success: true, message: "Payment Verified & Saved Successfully", payment });
+      return res.json({ success: true, message: "Payment verified & saved", payment });
     } else {
-      res.status(400).json({ success: false, error: "Invalid Signature" });
+      return res.status(400).json({ success: false, error: "Invalid signature" });
     }
   } catch (error) {
-    console.error("Error Verifying Payment:", error);
-    res.status(500).json({ error: error.message });
+    console.error("Error verifying payment:", error);
+    return res.status(500).json({ error: error.message });
   }
 };
+
+/**
+ * Fetch payment details (by paymentId) using Razorpay API + optional DB lookup
+ */
 const getPayments = async (req, res) => {
-  const { paymentId } = req.params;
-
-  if (!paymentId) {
-    return res.status(400).json({ error: "Invalid request. No payment ID found." });
-  }
-
   try {
-    const payment = await razorpay.payments.fetch(paymentId);
+    const paymentId = req.params.paymentId || req.params.id;
+    if (!paymentId) return res.status(400).json({ error: "paymentId required" });
 
-    if (!payment) {
-      return res.status(404).json({ error: "Payment not found." });
+    // Prefer DB lookup if you saved payments
+    const dbPayment = await Payment.findOne({ payment_id: paymentId }).lean();
+    if (dbPayment) {
+      return res.json({ payment: dbPayment });
     }
 
-    // Example mock data for demo purpose (replace with real DB lookup in real app)
-    const mockOrder = {
+    // Fallback: fetch directly from Razorpay
+    const payment = await razorpay.payments.fetch(paymentId);
+    if (!payment) return res.status(404).json({ error: "Payment not found" });
+
+    // Normalize for frontend
+    const result = {
       paymentId: payment.id,
-      totalAmount: payment.amount / 100,
-      paidAt: new Date(payment.created_at * 1000),
-      user: "arsharma2951@gmail.com", // Ideally from your DB
-      paymentMethod: payment.method || "UPI",
-      items: [
-        {
-          name: "Paneer Pizza",
-          image: "https://via.placeholder.com/60",
-          price: 250,
-          quantity: 1
-        },
-        {
-          name: "Burger Combo",
-          image: "https://via.placeholder.com/60",
-          price: 275,
-          quantity: 1
-        }
-      ]
+      totalAmount: (payment.amount || 0) / 100,
+      paidAt: payment.created_at ? new Date(payment.created_at * 1000) : null,
+      method: payment.method || null,
+      raw: payment,
     };
 
-    res.json({ payment: mockOrder });
+    return res.json({ payment: result });
   } catch (error) {
-    console.error("Error fetching payment details:", error);
-    res.status(500).json({ error: "Error fetching payment details." });
+    console.error("Error fetching payment:", error);
+    return res.status(500).json({ error: "Error fetching payment details." });
   }
 };
 
+/**
+ * Add a review to a food item
+ */
 const review = async (req, res) => {
   try {
     const { name, rating, comment } = req.body;
-    console.log("Review received:", name, rating, comment); // 👈
+    const foodId = req.params.id;
 
-    const food = await Food.findById(req.params.id);
-    if (!food) {
-      return res.status(404).json({ error: "Food item not found" });
+    if (!mongoose.Types.ObjectId.isValid(foodId)) {
+      return res.status(400).json({ error: "Invalid food id" });
     }
 
-    food.reviews.push({ name, rating, comment });
+    const food = await Food.findById(foodId);
+    if (!food) return res.status(404).json({ error: "Food item not found" });
+
+    const reviewObj = {
+      name: name || "Anonymous",
+      rating: Number(rating) || 0,
+      comment: comment || "",
+      createdAt: new Date(),
+    };
+
+    food.reviews = food.reviews || [];
+    food.reviews.push(reviewObj);
     await food.save();
 
-    res.status(200).json({ message: "Review added successfully" });
+    return res.status(200).json({ message: "Review added successfully" });
   } catch (err) {
-    console.error("Review POST Error:", err.message);
-    res.status(500).json({ error: "Server error" });
+    console.error("Review POST Error:", err);
+    return res.status(500).json({ error: "Server error" });
   }
 };
+
+/**
+ * Mark food as favorite (simple boolean toggle)
+ */
 const addFavorites = async (req, res) => {
   try {
     const foodId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(foodId)) {
+      return res.status(400).json({ message: "Invalid food id" });
+    }
 
     const updatedFood = await Food.findByIdAndUpdate(
       foodId,
-      { isFavorite: true },
+      { $set: { isFavorite: true } },
       { new: true }
     );
 
-    if (!updatedFood) {
-      return res.status(404).json({ message: "Food not found" });
-    }
+    if (!updatedFood) return res.status(404).json({ message: "Food not found" });
 
-    res.status(200).json({ message: `${updatedFood.name} added to favorites!` });
+    return res.status(200).json({ message: `${updatedFood.name} added to favorites!`, food: updatedFood });
   } catch (err) {
-    res.status(500).json({ message: "Failed to update favorite", error: err });
+    console.error("Error updating favorite:", err);
+    return res.status(500).json({ message: "Failed to update favorite", error: err.message });
   }
 };
-const adminAnalytics=async(req,res) => {
+
+/**
+ * Admin analytics example
+ */
+const adminAnalytics = async (req, res) => {
   try {
-    const dailyOrders = await Order.countDocuments({ createdAt: { $gte: new Date().setHours(0, 0, 0, 0) } });
-    const bestsellers = await Food.aggregate([
-      { $lookup: { from: 'orders', localField: '_id', foreignField: 'items.foodId', as: 'orders' }},
-      { $project: { name: 1, totalSold: { $size: '$orders' }}},
-      { $sort: { totalSold: -1 }}
+    // Daily orders (since midnight)
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const dailyOrders = await Order.countDocuments({ createdAt: { $gte: startOfDay } });
+
+    // Bestsellers (example aggregation, depends on schema of Order.items)
+    const bestsellers = await Order.aggregate([
+      { $unwind: "$items" },
+      { $group: { _id: "$items.foodId", sold: { $sum: "$items.quantity" } } },
+      { $sort: { sold: -1 } },
+      { $limit: 10 },
+      {
+        $lookup: {
+          from: "foods",
+          localField: "_id",
+          foreignField: "_id",
+          as: "food",
+        },
+      },
+      { $unwind: { path: "$food", preserveNullAndEmptyArrays: true } },
+      { $project: { foodName: "$food.name", sold: 1 } },
     ]);
-    const totalRevenue = await Order.aggregate([
-      { $group: { _id: null, total: { $sum: '$totalPrice' }}}
-    ]);
-    
-    res.json({
-      dailyOrders,
-      bestsellers,
-      totalRevenue: totalRevenue[0]?.total || 0,
-    });
+
+    const revenueAgg = await Order.aggregate([{ $group: { _id: null, total: { $sum: "$totalPrice" } } }]);
+
+    const totalRevenue = revenueAgg[0]?.total || 0;
+
+    return res.json({ dailyOrders, bestsellers, totalRevenue });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error fetching analytics.' });
+    console.error("Analytics error:", error);
+    return res.status(500).json({ message: "Error fetching analytics." });
   }
-}
+};
+
+/**
+ * Delete a food item
+ */
 const deleteFood = async (req, res) => {
   try {
-    const { id } = req.params;
-    const deletedFood = await Food.findByIdAndDelete(id);
-    if (!deletedFood) {
-      return res.status(404).json({ error: "Food item not found" });
+    const foodId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(foodId)) {
+      return res.status(400).json({ error: "Invalid food id" });
     }
-    res.json({ message: "Food item deleted successfully" });
+
+    const deleted = await Food.findByIdAndDelete(foodId);
+    if (!deleted) return res.status(404).json({ error: "Food item not found" });
+
+    return res.json({ message: "Food item deleted successfully", foodId: deleted._id });
   } catch (error) {
     console.error("Error deleting food item:", error);
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
 };
 
+/**
+ * Update food item
+ */
 const updateFood = async (req, res) => {
   try {
-    const { id } = req.params;
-
-    // Validate ObjectId
-    if (!mongoose.Types.ObjectId.isValid(id)) {
+    const foodId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(foodId)) {
       return res.status(400).json({ error: "Invalid food ID" });
     }
 
-    // Run update with validation enabled
-    const updatedFood = await Food.findByIdAndUpdate(
-      id,
-      req.body,
-      { new: true, runValidators: true }
-    );
+    const updatedFood = await Food.findByIdAndUpdate(foodId, req.body, { new: true, runValidators: true });
+    if (!updatedFood) return res.status(404).json({ error: "Food item not found" });
 
-    if (!updatedFood) {
-      return res.status(404).json({ error: "Food item not found" });
-    }
-
-    res.json(updatedFood);
+    return res.json(updatedFood);
   } catch (error) {
     console.error("Error updating food:", error);
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
 };
 
-
-
-
-
-
-
-
-
-
-module.exports = {review,adminAnalytics,addFavorites, signup, loginUser, addFood, addBulk, getFood, order, getOrder,deleteOrder,createOrder,verifyPayment ,getPayments,deleteFood,updateFood};
+// Export all controllers
+module.exports = {
+  signup,
+  loginUser,
+  addFood,
+  addBulk,
+  getFood,
+  order,
+  getOrder,
+  deleteOrder,
+  createOrder,
+  verifyPayment,
+  getPayments,
+  review,
+  addFavorites,
+  adminAnalytics,
+  deleteFood,
+  updateFood,
+};
