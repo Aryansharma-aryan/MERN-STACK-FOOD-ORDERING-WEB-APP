@@ -31,6 +31,8 @@ const Checkout = () => {
         return;
       }
 
+      console.log("Backend URL:", import.meta.env.VITE_API_URL);
+
       const response = await axios.post(
         `${import.meta.env.VITE_API_URL}/api/create-order`,
         { amount: cartTotal },
@@ -42,8 +44,11 @@ const Checkout = () => {
         }
       );
 
+      console.log("Order Response:", response.data);
+
       const order = response.data.order;
 
+      // Razorpay options
       const options = {
         key: import.meta.env.VITE_RAZORPAY_KEY_ID,
         amount: order.amount,
@@ -56,27 +61,27 @@ const Checkout = () => {
           alert("Payment Successful!");
 
           const userId = localStorage.getItem("userId");
-          if (userId) localStorage.removeItem(`cart_${userId}`);
+          if (userId) {
+            localStorage.removeItem(`cart_${userId}`);
+          }
 
           navigate(`/payment/${paymentResponse.razorpay_payment_id}`);
         },
 
-        theme: {
-          color: "#0a5",
-        },
+        theme: { color: "#0a5" },
       };
 
       const razorpay = new window.Razorpay(options);
 
       razorpay.on("payment.failed", (err) => {
-        alert("Payment Failed!");
         console.error(err);
+        alert("Payment Failed!");
       });
 
       razorpay.open();
     } catch (err) {
-      console.error("Payment Error:", err);
-      alert("Payment failed.");
+      console.error("Payment Error:", err.response?.data || err);
+      alert("Payment failed. Check console.");
     }
   };
 
