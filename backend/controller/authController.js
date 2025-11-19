@@ -7,9 +7,9 @@ const crypto = require("crypto");
 
 // Models (adjust paths if your structure differs)
 const User = require("../models/User");
-const Food = require("../models/Food");
-const Order = require("../models/Order");
-const Payment = require("../models/Payment");
+const Food = require("../models/FoodData");
+const Order = require("../models/OrderModel");
+const Payment = require("../models/PaymentModel");
 
 // Utils
 const bcrypt = require("bcryptjs");
