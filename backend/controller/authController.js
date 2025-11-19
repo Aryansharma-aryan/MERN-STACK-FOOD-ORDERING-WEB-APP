@@ -11,18 +11,17 @@ const User = require("../models/User");
 const Food = require("../models/FoodData");
 const Order = require("../models/OrderModel");
 const Payment = require("../models/PaymentModel");
+const JWT_SECRET = process.env.JWT_SECRET;
+const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID;
+const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
 
-// Environment variables
-const JWT_SECRET = "TFYUG67T67T762";
-const RAZORPAY_KEY_ID = "rzp_test_RhYEJDxeYx80yK"
-const RAZORPAY_KEY_SECRET = "piin4X6KArptWDZtWMz5lalV"
 
 if (!JWT_SECRET) console.warn("⚠️ JWT_SECRET is not set in environment variables.");
 if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) console.warn("⚠️ Razorpay keys are not set.");
 
 const razorpay = new Razorpay({
-  key_id: "rzp_test_RhYEJDxeYx80yK",           // <- your test key ID
-  key_secret: "piin4X6KArptWDZtWMz5lalV",      // <- your test key secret
+  key_id: RAZORPAY_KEY_ID,
+  key_secret: RAZORPAY_KEY_SECRET,
 });
 
 // ----------------- Controllers -----------------
