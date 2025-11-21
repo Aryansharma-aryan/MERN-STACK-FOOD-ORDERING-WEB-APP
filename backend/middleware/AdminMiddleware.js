@@ -5,10 +5,11 @@ const JWT_SECRET = process.env.JWT_SECRET || "TFYUG67T67T762";
 
 const isAdmin = async (req, res, next) => {
   try {
-    // Get token from Authorization header or cookies
-    const token = req.headers.authorization?.startsWith("Bearer ")
-      ? req.headers.authorization.split(" ")[1]
-      : req.cookies?.token;
+    // Token can come from Authorization header or cookies
+    const token =
+      req.headers.authorization?.startsWith("Bearer ")
+        ? req.headers.authorization.split(" ")[1]
+        : req.cookies?.token;
 
     if (!token) {
       return res
@@ -25,7 +26,6 @@ const isAdmin = async (req, res, next) => {
         .json({ success: false, message: "Invalid or expired token." });
     }
 
-    // Find user in DB
     const user = await User.findById(decoded.id).select("role name email");
     if (!user) {
       return res
@@ -33,14 +33,13 @@ const isAdmin = async (req, res, next) => {
         .json({ success: false, message: "User not found." });
     }
 
-    // Check if user is admin
     if (user.role !== "admin") {
       return res
         .status(403)
         .json({ success: false, message: "Access Denied! Admins only." });
     }
 
-    // Attach user info to request object
+    // Attach user info
     req.user = { id: user._id, role: user.role, name: user.name };
     next();
   } catch (error) {

@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
 const AdminDashboard = () => {
+  const navigate = useNavigate();
   const [foods, setFoods] = useState([]);
   const [newFood, setNewFood] = useState({
     name: "",
@@ -13,31 +15,33 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
-  // Get token & role
   const token = localStorage.getItem("authToken");
-  const role = localStorage.getItem("userRole");
+  const isAdmin = localStorage.getItem("isAdmin") === "true";
 
-  // Redirect non-admin
+  // Redirect non-admin users
   useEffect(() => {
-    if (!token || role !== "admin") {
+    if (!token || !isAdmin) {
       alert("Unauthorized! Admin access required.");
-      window.location.href = "/login";
+      navigate("/login", { replace: true });
     }
-  }, [token, role]);
+  }, [token, isAdmin, navigate]);
 
-  // Axios default headers
-  axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+  // Create axios instance with token
+  const axiosInstance = axios.create({
+    baseURL: "https://mern-stack-food-ordering-web-app-2.onrender.com/api",
+    headers: { Authorization: `Bearer ${token}` },
+  });
 
-  // Interceptor to handle 401/403
+  // Axios interceptor for 401/403
   useEffect(() => {
-    const interceptor = axios.interceptors.response.use(
+    const interceptor = axiosInstance.interceptors.response.use(
       (response) => response,
       (error) => {
         if (error.response) {
           if (error.response.status === 401) {
             alert("Unauthorized! Please log in again.");
             localStorage.clear();
-            window.location.href = "/login";
+            navigate("/login", { replace: true });
           } else if (error.response.status === 403) {
             alert(error.response.data.message || "Access Denied! Admins only.");
           }
@@ -45,18 +49,16 @@ const AdminDashboard = () => {
         return Promise.reject(error);
       }
     );
-    return () => axios.interceptors.response.eject(interceptor);
-  }, []);
+    return () => axiosInstance.interceptors.response.eject(interceptor);
+  }, [axiosInstance, navigate]);
 
-  // Fetch foods
+  // Fetch all foods
   const fetchFoods = async () => {
     setLoading(true);
     setErrorMessage("");
     try {
-      const response = await axios.get(
-        "https://mern-stack-food-ordering-web-app-2.onrender.com/api/food"
-      );
-      setFoods(response.data);
+      const res = await axiosInstance.get("/food");
+      setFoods(res.data);
     } catch (err) {
       setErrorMessage(err.response?.data?.message || "Failed to fetch food.");
     } finally {
@@ -65,8 +67,8 @@ const AdminDashboard = () => {
   };
 
   useEffect(() => {
-    fetchFoods();
-  }, []);
+    if (token && isAdmin) fetchFoods();
+  }, [token, isAdmin]);
 
   // Add or update food
   const handleSubmit = async (e) => {
@@ -76,16 +78,10 @@ const AdminDashboard = () => {
 
     try {
       if (editingFood) {
-        const res = await axios.put(
-          `https://mern-stack-food-ordering-web-app-2.onrender.com/api/updateFood/${editingFood._id}`,
-          foodData
-        );
+        const res = await axiosInstance.put(`/updateFood/${editingFood._id}`, foodData);
         alert(res.data.message || "Food updated!");
       } else {
-        const res = await axios.post(
-          "https://mern-stack-food-ordering-web-app-2.onrender.com/api/addFood",
-          foodData
-        );
+        const res = await axiosInstance.post("/addFood", foodData);
         alert(res.data.message || "Food added!");
       }
       setNewFood({ name: "", price: "", description: "", image: "" });
@@ -110,9 +106,7 @@ const AdminDashboard = () => {
   const handleDeleteFood = async (id, name) => {
     if (!window.confirm(`Delete "${name}"?`)) return;
     try {
-      const res = await axios.delete(
-        `https://mern-stack-food-ordering-web-app-2.onrender.com/api/deleteFood/${id}`
-      );
+      const res = await axiosInstance.delete(`/deleteFood/${id}`);
       alert(res.data.message || "Deleted!");
       fetchFoods();
     } catch (err) {
@@ -149,9 +143,7 @@ const AdminDashboard = () => {
             className="form-control mb-2"
             placeholder="Description"
             value={newFood.description}
-            onChange={(e) =>
-              setNewFood({ ...newFood, description: e.target.value })
-            }
+            onChange={(e) => setNewFood({ ...newFood, description: e.target.value })}
             required
           />
           <input
@@ -162,9 +154,7 @@ const AdminDashboard = () => {
             onChange={(e) => setNewFood({ ...newFood, image: e.target.value })}
             required
           />
-          <button className="btn btn-primary">
-            {editingFood ? "Update" : "Add"}
-          </button>
+          <button className="btn btn-primary">{editingFood ? "Update" : "Add"}</button>
           {editingFood && (
             <button
               type="button"
@@ -180,7 +170,7 @@ const AdminDashboard = () => {
         </form>
       </div>
 
-      {/* Food list */}
+      {/* Food List */}
       <h3>Food Items</h3>
       {loading ? (
         <p>Loading...</p>
@@ -189,14 +179,32 @@ const AdminDashboard = () => {
       ) : (
         <ul className="list-group">
           {foods.map((food) => (
-            <li key={food._id} className="list-group-item d-flex justify-content-between align-items-center">
+            <li
+              key={food._id}
+              className="list-group-item d-flex justify-content-between align-items-center"
+            >
               <div>
-                <img src={food.image || "https://via.placeholder.com/50"} alt={food.name} width="50" className="me-2"/>
+                <img
+                  src={food.image || "https://via.placeholder.com/50"}
+                  alt={food.name}
+                  width="50"
+                  className="me-2"
+                />
                 <strong>{food.name}</strong> - ${food.price}
               </div>
               <div>
-                <button className="btn btn-warning me-2" onClick={() => handleEditFood(food)}>Edit</button>
-                <button className="btn btn-danger" onClick={() => handleDeleteFood(food._id, food.name)}>Delete</button>
+                <button
+                  className="btn btn-warning me-2"
+                  onClick={() => handleEditFood(food)}
+                >
+                  Edit
+                </button>
+                <button
+                  className="btn btn-danger"
+                  onClick={() => handleDeleteFood(food._id, food.name)}
+                >
+                  Delete
+                </button>
               </div>
             </li>
           ))}

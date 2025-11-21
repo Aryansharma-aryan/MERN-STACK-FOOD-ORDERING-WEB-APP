@@ -15,7 +15,6 @@ export default function Login({ handleLogin }) {
 
   const onSubmit = async (formData) => {
     try {
-      // 🔥 Instant feedback (fast UX)
       toast.loading("Logging in...", { toastId: "login" });
 
       const response = await fetch(
@@ -25,7 +24,6 @@ export default function Login({ handleLogin }) {
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           mode: "cors",
-          cache: "no-cache",
           body: JSON.stringify(formData),
         }
       );
@@ -34,12 +32,12 @@ export default function Login({ handleLogin }) {
 
       if (!response.ok) throw new Error(data.message || "Login failed");
 
-      // 🔥 Save tokens instantly
+      // Save auth info
       localStorage.setItem("authToken", data.token);
       localStorage.setItem("userId", data.userId);
-      localStorage.setItem("isAdmin", data.role === "admin");
+      localStorage.setItem("isAdmin", data.role === "admin" ? "true" : "false");
+      localStorage.setItem("userRole", data.role);
 
-      // 🔥 Replace loading with success instantly
       toast.update("login", {
         render: "✅ Login successful!",
         type: "success",
@@ -47,10 +45,15 @@ export default function Login({ handleLogin }) {
         autoClose: 1000,
       });
 
-      // 🔥 Faster redirect
+      handleLogin();
+
+      // Redirect: admins -> /admin, users -> /home
       setTimeout(() => {
-        handleLogin();
-        navigate("/");
+        if (data.role === "admin") {
+          navigate("/admin", { replace: true });
+        } else {
+          navigate("/home", { replace: true });
+        }
       }, 500);
     } catch (err) {
       toast.update("login", {
@@ -68,7 +71,6 @@ export default function Login({ handleLogin }) {
       style={{ backgroundColor: "#2C3E50" }}
     >
       <ToastContainer />
-
       <div
         className="card p-4 shadow-lg"
         style={{
@@ -81,7 +83,6 @@ export default function Login({ handleLogin }) {
         <h3 className="text-center mb-4">Login</h3>
 
         <form onSubmit={handleSubmit(onSubmit)}>
-          {/* EMAIL */}
           <div className="mb-3">
             <label className="form-label">Email</label>
             <input
@@ -103,7 +104,6 @@ export default function Login({ handleLogin }) {
             )}
           </div>
 
-          {/* PASSWORD */}
           <div className="mb-3">
             <label className="form-label">Password</label>
             <input
@@ -119,7 +119,6 @@ export default function Login({ handleLogin }) {
             )}
           </div>
 
-          {/* BUTTON */}
           <button
             type="submit"
             className="btn w-100 text-white"
@@ -136,7 +135,6 @@ export default function Login({ handleLogin }) {
             )}
           </button>
 
-          {/* SIGNUP LINK */}
           <div className="text-center mt-3">
             <small>
               New user?{" "}
