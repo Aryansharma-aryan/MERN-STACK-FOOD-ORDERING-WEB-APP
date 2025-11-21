@@ -1,4 +1,4 @@
-import React from "react";
+import React, { memo } from "react";
 import DisplayData from "./DisplayData";
 
 const Home = ({ cart, setCart }) => {
@@ -9,4 +9,4 @@ const Home = ({ cart, setCart }) => {
   );
 };
 
-export default Home;
+export default memo(Home);

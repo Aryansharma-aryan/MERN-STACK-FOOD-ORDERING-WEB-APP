@@ -10,93 +10,125 @@ const AdminDashboard = () => {
     image: "",
   });
   const [editingFood, setEditingFood] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
-  // Fetch all food items when the component mounts
+  // Get token & role
+  const token = localStorage.getItem("authToken");
+  const role = localStorage.getItem("userRole");
+
+  // Redirect non-admin
   useEffect(() => {
-    fetchFoods();
+    if (!token || role !== "admin") {
+      alert("Unauthorized! Admin access required.");
+      window.location.href = "/login";
+    }
+  }, [token, role]);
+
+  // Axios default headers
+  axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+
+  // Interceptor to handle 401/403
+  useEffect(() => {
+    const interceptor = axios.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response) {
+          if (error.response.status === 401) {
+            alert("Unauthorized! Please log in again.");
+            localStorage.clear();
+            window.location.href = "/login";
+          } else if (error.response.status === 403) {
+            alert(error.response.data.message || "Access Denied! Admins only.");
+          }
+        }
+        return Promise.reject(error);
+      }
+    );
+    return () => axios.interceptors.response.eject(interceptor);
   }, []);
 
-  // Fetch food items from the backend
+  // Fetch foods
   const fetchFoods = async () => {
+    setLoading(true);
+    setErrorMessage("");
     try {
       const response = await axios.get(
         "https://mern-stack-food-ordering-web-app-2.onrender.com/api/food"
       );
       setFoods(response.data);
-    } catch (error) {
-      console.error("Error fetching food items", error);
+    } catch (err) {
+      setErrorMessage(err.response?.data?.message || "Failed to fetch food.");
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Handle adding a new food item
-  const handleAddFood = async (e) => {
+  useEffect(() => {
+    fetchFoods();
+  }, []);
+
+  // Add or update food
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setErrorMessage("");
+    const foodData = { ...newFood, price: parseFloat(newFood.price) };
+
     try {
-      const response = await axios.post(
-        "https://mern-stack-food-ordering-web-app-2.onrender.com/api/addFood",
-        newFood
-      );
-      alert(response.data.message);
-      fetchFoods(); // Refresh list after adding
+      if (editingFood) {
+        const res = await axios.put(
+          `https://mern-stack-food-ordering-web-app-2.onrender.com/api/updateFood/${editingFood._id}`,
+          foodData
+        );
+        alert(res.data.message || "Food updated!");
+      } else {
+        const res = await axios.post(
+          "https://mern-stack-food-ordering-web-app-2.onrender.com/api/addFood",
+          foodData
+        );
+        alert(res.data.message || "Food added!");
+      }
       setNewFood({ name: "", price: "", description: "", image: "" });
-    } catch (error) {
-      console.error("Error adding food item", error);
-    }
-  };
-
-  // Handle deleting a food item
-  const handleDeleteFood = async (foodId) => {
-    console.log("Deleting Food ID:", foodId);
-    try {
-      const response = await axios.delete(
-        `https://mern-stack-food-ordering-web-app-2.onrender.com/api/deleteFood/${foodId}`
-      );
-      alert(response.data.message);
+      setEditingFood(null);
       fetchFoods();
-    } catch (error) {
-      console.error(
-        "Error deleting food item",
-        error.response?.data || error.message
-      );
+    } catch (err) {
+      setErrorMessage(err.response?.data?.message || "Error saving food.");
+      alert(err.response?.data?.message || "Error saving food.");
     }
   };
 
-  // Handle editing a food item
   const handleEditFood = (food) => {
     setEditingFood(food);
     setNewFood({
-      name: food.name || "",
-      price: food.price || "",
-      description: food.description || "",
-      image: food.image || "",
-    }); // populate form with current data
+      name: food.name,
+      price: food.price,
+      description: food.description,
+      image: food.image,
+    });
   };
 
-  // Handle updating food item
-  const handleUpdateFood = async (e) => {
-    e.preventDefault();
+  const handleDeleteFood = async (id, name) => {
+    if (!window.confirm(`Delete "${name}"?`)) return;
     try {
-      const response = await axios.put(
-        `https://mern-stack-food-ordering-web-app-2.onrender.com/api/updateFood/${editingFood._id}`,
-        newFood
+      const res = await axios.delete(
+        `https://mern-stack-food-ordering-web-app-2.onrender.com/api/deleteFood/${id}`
       );
-      alert("successfully updated",response);
+      alert(res.data.message || "Deleted!");
       fetchFoods();
-      setEditingFood(null);
-      setNewFood({ name: "", price: "", description: "", image: "" });
-    } catch (error) {
-      console.error("Error updating food item", error);
+    } catch (err) {
+      alert(err.response?.data?.message || "Delete failed");
     }
   };
 
   return (
-    <div className="container">
+    <div className="container mt-4">
       <h2>Admin Dashboard</h2>
+      {errorMessage && <div className="alert alert-danger">{errorMessage}</div>}
 
-      {/* Add or Edit Food Form */}
+      {/* Add/Edit Food */}
       <div className="mb-4">
-        <h3>{editingFood ? "Edit Food Item" : "Add New Food Item"}</h3>
-        <form onSubmit={editingFood ? handleUpdateFood : handleAddFood}>
+        <h3>{editingFood ? "Edit Food" : "Add Food"}</h3>
+        <form onSubmit={handleSubmit}>
           <input
             type="text"
             className="form-control mb-2"
@@ -130,13 +162,13 @@ const AdminDashboard = () => {
             onChange={(e) => setNewFood({ ...newFood, image: e.target.value })}
             required
           />
-          <button type="submit" className="btn btn-primary">
-            {editingFood ? "Update Food Item" : "Add Food Item"}
+          <button className="btn btn-primary">
+            {editingFood ? "Update" : "Add"}
           </button>
           {editingFood && (
             <button
               type="button"
-              className="btn btn-secondary ml-2"
+              className="btn btn-secondary ms-2"
               onClick={() => {
                 setEditingFood(null);
                 setNewFood({ name: "", price: "", description: "", image: "" });
@@ -148,38 +180,28 @@ const AdminDashboard = () => {
         </form>
       </div>
 
-      {/* List of Food Items */}
+      {/* Food list */}
       <h3>Food Items</h3>
-      <ul className="list-group">
-        {foods.map((food) => (
-          <li key={food._id} className="list-group-item">
-            <div className="d-flex justify-content-between align-items-center">
+      {loading ? (
+        <p>Loading...</p>
+      ) : foods.length === 0 ? (
+        <p>No foods found.</p>
+      ) : (
+        <ul className="list-group">
+          {foods.map((food) => (
+            <li key={food._id} className="list-group-item d-flex justify-content-between align-items-center">
               <div>
-                <img
-                  src={food.image || "https://via.placeholder.com/50"}
-                  alt={food.name}
-                  width="50"
-                />
-                <strong> {food.name}</strong> - ${food.price}
+                <img src={food.image || "https://via.placeholder.com/50"} alt={food.name} width="50" className="me-2"/>
+                <strong>{food.name}</strong> - ${food.price}
               </div>
               <div>
-                <button
-                  className="btn btn-warning mr-2"
-                  onClick={() => handleEditFood(food)}
-                >
-                  Edit
-                </button>
-                <button
-                  className="btn btn-danger"
-                  onClick={() => handleDeleteFood(food._id)}
-                >
-                  Delete
-                </button>
+                <button className="btn btn-warning me-2" onClick={() => handleEditFood(food)}>Edit</button>
+                <button className="btn btn-danger" onClick={() => handleDeleteFood(food._id, food.name)}>Delete</button>
               </div>
-            </div>
-          </li>
-        ))}
-      </ul>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 };

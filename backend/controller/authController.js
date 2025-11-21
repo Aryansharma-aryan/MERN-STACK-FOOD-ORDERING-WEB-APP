@@ -27,13 +27,17 @@ const razorpay = new Razorpay({
 // ----------------- Controllers -----------------
 
 // Signup
+// ----------------- Controllers -----------------
+
+// Signup
 const signup = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
     const { name, email, password, role = "user" } = req.body;
-    if (!name || !email || !password) return res.status(400).json({ message: "Name, email and password are required." });
+    if (!name || !email || !password)
+      return res.status(400).json({ message: "Name, email and password are required." });
 
     const existing = await User.findOne({ email });
     if (existing) return res.status(400).json({ message: "User already exists." });
@@ -42,29 +46,30 @@ const signup = async (req, res, next) => {
     const newUser = new User({ name, email, password: hashedPassword, role });
     await newUser.save();
 
-    // Optional admin creation
-    try {
-      const adminEmail = process.env.ADMIN_EMAIL;
-      const adminPass = process.env.ADMIN_PASS;
-      if (adminEmail && adminPass) {
-        const adminExists = await User.findOne({ email: adminEmail });
-        if (!adminExists) {
-          const adminHash = await bcrypt.hash(adminPass, 10);
-          const adminUser = new User({
-            name: process.env.ADMIN_NAME || "Admin",
-            email: adminEmail,
-            password: adminHash,
-            role: "admin",
-          });
-          await adminUser.save();
-          console.log("✅ Admin account created (from env)");
-        }
+    // Ensure admin account creation if env vars exist
+    const adminEmail = process.env.ADMIN_EMAIL;
+    const adminPass = process.env.ADMIN_PASS;
+    if (adminEmail && adminPass) {
+      const adminExists = await User.findOne({ email: adminEmail });
+      if (!adminExists) {
+        const adminHash = await bcrypt.hash(adminPass, 10);
+        const adminUser = new User({
+          name: process.env.ADMIN_NAME || "Admin",
+          email: adminEmail,
+          password: adminHash,
+          role: "admin",
+        });
+        await adminUser.save();
+        console.log("✅ Admin account created (from env)");
       }
-    } catch (adminErr) {
-      console.error("Admin creation check error:", adminErr);
     }
 
-    const token = jwt.sign({ id: newUser._id, role: newUser.role }, JWT_SECRET, { expiresIn: "1h" });
+    // Sign JWT with role
+    const token = jwt.sign(
+      { id: newUser._id, role: newUser.role },
+      JWT_SECRET,
+      { expiresIn: "1h" }
+    );
 
     res.cookie("token", token, {
       httpOnly: true,
@@ -73,7 +78,12 @@ const signup = async (req, res, next) => {
       maxAge: 3600000,
     });
 
-    return res.status(201).json({ message: "User created successfully", token, userId: newUser._id, role: newUser.role });
+    return res.status(201).json({
+      message: "User created successfully",
+      token,
+      userId: newUser._id,
+      role: newUser.role,
+    });
   } catch (error) {
     console.error("Signup error:", error);
     return next(error);
@@ -84,10 +94,12 @@ const signup = async (req, res, next) => {
 const loginUser = async (req, res) => {
   try {
     const errors = validationResult(req);
-    if (!errors.isEmpty()) return res.status(400).json({ message: "Invalid input", errors: errors.array() });
+    if (!errors.isEmpty())
+      return res.status(400).json({ message: "Invalid input", errors: errors.array() });
 
     const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ message: "Email and password are required." });
+    if (!email || !password)
+      return res.status(400).json({ message: "Email and password are required." });
 
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ message: "User does not exist." });
@@ -95,6 +107,7 @@ const loginUser = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ message: "Invalid password." });
 
+    // Always include role in token
     const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: "1h" });
 
     res.cookie("token", token, {
@@ -104,12 +117,18 @@ const loginUser = async (req, res) => {
       maxAge: 3600000,
     });
 
-    return res.status(200).json({ message: "Login successful", userId: user._id, role: user.role, token });
+    return res.status(200).json({
+      message: "Login successful",
+      userId: user._id,
+      role: user.role,
+      token,
+    });
   } catch (error) {
     console.error("Login error:", error);
     return res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
 
 // Add single food
 const addFood = async (req, res) => {

@@ -3,7 +3,6 @@ import { useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import "bootstrap/dist/css/bootstrap.min.css";
 
 export default function Login({ handleLogin }) {
   const navigate = useNavigate();
@@ -16,39 +15,49 @@ export default function Login({ handleLogin }) {
 
   const onSubmit = async (formData) => {
     try {
+      // 🔥 Instant feedback (fast UX)
+      toast.loading("Logging in...", { toastId: "login" });
+
       const response = await fetch(
-        `https://mern-stack-food-ordering-web-app-2.onrender.com/api/login`,
+        "https://mern-stack-food-ordering-web-app-2.onrender.com/api/login",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           mode: "cors",
+          cache: "no-cache",
           body: JSON.stringify(formData),
         }
       );
 
       const data = await response.json();
 
-      if (!response.ok) throw new Error(data.message || "Login failed. Try again.");
-      if (!data.userId || !data.role || !data.token)
-        throw new Error("Incomplete login response from server.");
+      if (!response.ok) throw new Error(data.message || "Login failed");
 
+      // 🔥 Save tokens instantly
       localStorage.setItem("authToken", data.token);
       localStorage.setItem("userId", data.userId);
       localStorage.setItem("isAdmin", data.role === "admin");
 
-      toast.success("✅ Login successful!", {
-        position: "top-center",
-        autoClose: 1200,
+      // 🔥 Replace loading with success instantly
+      toast.update("login", {
+        render: "✅ Login successful!",
+        type: "success",
+        isLoading: false,
+        autoClose: 1000,
       });
 
+      // 🔥 Faster redirect
       setTimeout(() => {
-        handleLogin(); // update auth state
+        handleLogin();
         navigate("/");
-      }, 1200);
-    } catch (error) {
-      toast.error(error.message || "❌ Login failed", {
-        position: "top-center",
+      }, 500);
+    } catch (err) {
+      toast.update("login", {
+        render: err.message || "❌ Login failed",
+        type: "error",
+        isLoading: false,
+        autoClose: 1500,
       });
     }
   };
@@ -59,6 +68,7 @@ export default function Login({ handleLogin }) {
       style={{ backgroundColor: "#2C3E50" }}
     >
       <ToastContainer />
+
       <div
         className="card p-4 shadow-lg"
         style={{
@@ -70,7 +80,8 @@ export default function Login({ handleLogin }) {
       >
         <h3 className="text-center mb-4">Login</h3>
 
-        <form onSubmit={handleSubmit(onSubmit)} noValidate>
+        <form onSubmit={handleSubmit(onSubmit)}>
+          {/* EMAIL */}
           <div className="mb-3">
             <label className="form-label">Email</label>
             <input
@@ -87,24 +98,28 @@ export default function Login({ handleLogin }) {
               disabled={isSubmitting}
               style={{ borderRadius: "10px" }}
             />
-            {errors.email && <p className="text-danger mt-1">{errors.email.message}</p>}
+            {errors.email && (
+              <p className="text-danger mt-1">{errors.email.message}</p>
+            )}
           </div>
 
+          {/* PASSWORD */}
           <div className="mb-3">
             <label className="form-label">Password</label>
             <input
               type="password"
               className="form-control"
               placeholder="Enter password"
-              {...register("password", {
-                required: "Password is required",
-              })}
+              {...register("password", { required: "Password is required" })}
               disabled={isSubmitting}
               style={{ borderRadius: "10px" }}
             />
-            {errors.password && <p className="text-danger mt-1">{errors.password.message}</p>}
+            {errors.password && (
+              <p className="text-danger mt-1">{errors.password.message}</p>
+            )}
           </div>
 
+          {/* BUTTON */}
           <button
             type="submit"
             className="btn w-100 text-white"
@@ -113,18 +128,15 @@ export default function Login({ handleLogin }) {
           >
             {isSubmitting ? (
               <>
-                <span
-                  className="spinner-border spinner-border-sm text-light me-2"
-                  role="status"
-                  aria-hidden="true"
-                ></span>
-                Logging in...
+                <span className="spinner-border spinner-border-sm me-2"></span>
+                Processing...
               </>
             ) : (
               "Login"
             )}
           </button>
 
+          {/* SIGNUP LINK */}
           <div className="text-center mt-3">
             <small>
               New user?{" "}

@@ -6,9 +6,9 @@ import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import Loader from "./components/Loader";
 import AdminDashboard from "./components/Admin/AdminDashboard";
-import AdminRoute from "./components/AdminRoute"; // Admin wrapper for /admin
+import AdminRoute from "./components/AdminRoute";
 
-// Pages (Lazy loading for performance)
+// Pages (Lazy load)
 const Signup = lazy(() => import("./pages/Signup"));
 const Login = lazy(() => import("./pages/Login"));
 const Home = lazy(() => import("./pages/Home"));
@@ -21,11 +21,10 @@ const PaymentReceipt = lazy(() => import("./pages/PaymentReceipt"));
 function App() {
   const navigate = useNavigate();
 
-  const [isAuthenticated, setIsAuthenticated] = useState(null); // null = loading
+  const [isAuthenticated, setIsAuthenticated] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [cart, setCart] = useState([]);
 
-  // Load auth and cart on app load
   useEffect(() => {
     const token = localStorage.getItem("authToken");
     const adminStatus = localStorage.getItem("isAdmin") === "true";
@@ -38,19 +37,15 @@ function App() {
       try {
         const savedCart = JSON.parse(localStorage.getItem(`cart_${userId}`) || "[]");
         setCart(Array.isArray(savedCart) ? savedCart : []);
-      } catch (err) {
-        console.error("Failed to load cart:", err);
+      } catch {
         setCart([]);
       }
     }
   }, []);
 
-  // Save user-specific cart to localStorage
   useEffect(() => {
     const userId = localStorage.getItem("userId");
-    if (userId) {
-      localStorage.setItem(`cart_${userId}`, JSON.stringify(cart));
-    }
+    if (userId) localStorage.setItem(`cart_${userId}`, JSON.stringify(cart));
   }, [cart]);
 
   const handleLogin = () => {
@@ -67,11 +62,7 @@ function App() {
 
   const handleLogout = () => {
     const userId = localStorage.getItem("userId");
-
-    // Optionally, remove cart too
-    if (userId) {
-      localStorage.removeItem(`cart_${userId}`);
-    }
+    if (userId) localStorage.removeItem(`cart_${userId}`);
 
     localStorage.removeItem("authToken");
     localStorage.removeItem("userId");
@@ -88,46 +79,30 @@ function App() {
   return (
     <>
       <Navbar cart={cart} handleLogout={handleLogout} isAdmin={isAdmin} />
-
       <main>
         <Suspense fallback={<Loader />}>
           <Routes>
-            {/* Public Routes */}
             <Route path="/" element={<Navigate to="/home" />} />
             <Route path="/signup" element={<Signup />} />
             <Route
               path="/login"
-              element={
-                !isAuthenticated ? (
-                  <Login handleLogin={handleLogin} />
-                ) : (
-                  <Navigate to="/home" />
-                )
-              }
+              element={!isAuthenticated ? <Login handleLogin={handleLogin} /> : <Navigate to="/home" />}
             />
             <Route path="/home" element={<Home cart={cart} setCart={setCart} />} />
             <Route path="/cart" element={<Cart cart={cart} setCart={setCart} />} />
             <Route path="/checkout" element={<Checkout />} />
             <Route path="/payment/:paymentId" element={<PaymentReceipt />} />
-
-            {/* Optional: Protect Orders with auth */}
             <Route path="/order" element={<Order />} />
             <Route path="/myOrders" element={<OrderPage />} />
 
-            {/* Admin Panel (Protected Route) */}
-            {isAuthenticated && isAdmin && (
-              <Route
-                path="/admin"
-                element={<AdminRoute element={<AdminDashboard />} />}
-              />
-            )}
+            {/* Admin Route */}
+            <Route path="/admin" element={<AdminRoute element={<AdminDashboard />} />} />
 
-            {/* Fallback to Home */}
+            {/* Fallback */}
             <Route path="*" element={<Navigate to="/home" />} />
           </Routes>
         </Suspense>
       </main>
-
       <Footer />
     </>
   );

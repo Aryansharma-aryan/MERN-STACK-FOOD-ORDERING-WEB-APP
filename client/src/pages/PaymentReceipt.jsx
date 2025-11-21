@@ -13,21 +13,25 @@ export default function PaymentReceipt() {
   useEffect(() => {
     const fetchPayment = async () => {
       try {
-       const token = localStorage.getItem("authToken"); // or sessionStorage
+        const token = localStorage.getItem("authToken");
+        if (!token) {
+          setError("Unauthorized! Please log in.");
+          setLoading(false);
+          return;
+        }
 
-const response = await axios.get(
-  `https://mern-stack-food-ordering-web-app-2.onrender.com/api/payment/${paymentId}`,
-  {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  }
-);
+        const response = await axios.get(
+          `https://mern-stack-food-ordering-web-app-2.onrender.com/api/payment/${paymentId}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
 
-        setPayment(response.data);
+        // Use `payment` key if backend wraps response
+        setPayment(response.data.payment || response.data);
       } catch (err) {
         console.error("Error fetching payment:", err);
-        setError("❌ No payment found.");
+        setError("❌ No payment found or unauthorized.");
       } finally {
         setLoading(false);
       }
@@ -37,14 +41,26 @@ const response = await axios.get(
   }, [paymentId]);
 
   const downloadInvoice = () => {
+    if (!payment) return;
+
     const doc = new jsPDF();
     doc.setFontSize(16);
     doc.text("🧾 Food Mania - Payment Receipt", 20, 20);
+
     doc.setFontSize(12);
-    doc.text(`Payment ID: ${payment?.paymentId || "N/A"}`, 20, 40);
-    doc.text(`Status: ${payment?.status || "N/A"}`, 20, 50);
-    doc.text(`Amount Paid: ₹${payment?.amount || "N/A"}`, 20, 60);
-    doc.text(`Date: ${payment?.paymentDate || "N/A"}`, 20, 70);
+
+    // Dynamically add all payment fields
+    let y = 40;
+    Object.entries(payment).forEach(([key, value]) => {
+      if (value instanceof Object && !(value instanceof Date)) {
+        value = JSON.stringify(value, null, 2);
+      } else if (key === "paidAt" && value) {
+        value = new Date(value).toLocaleString();
+      }
+      doc.text(`${key}: ${value ?? "N/A"}`, 20, y);
+      y += 10;
+    });
+
     doc.save("invoice.pdf");
   };
 
@@ -59,9 +75,7 @@ const response = await axios.get(
 
   if (error || !payment) {
     return (
-      <div className="text-center mt-5 text-danger fw-bold">
-        ❌ No payment found.
-      </div>
+      <div className="text-center mt-5 text-danger fw-bold">{error}</div>
     );
   }
 
@@ -72,22 +86,21 @@ const response = await axios.get(
           <h3>✅ Payment Successful</h3>
         </div>
         <div className="card-body">
-          <div className="row mb-3">
-            <div className="col-md-6">
-              <p><strong>Payment ID:</strong> {payment.paymentId}</p>
-              <p><strong>Status:</strong> {payment.status}</p>
-            </div>
-            <div className="col-md-6 text-md-end">
-              <p><strong>Date:</strong> {payment.paymentDate}</p>
-              <p><strong>Amount Paid:</strong> ₹{payment.amount}</p>
-            </div>
-          </div>
+          {Object.entries(payment).map(([key, value]) => {
+            if (value instanceof Object && !(value instanceof Date)) {
+              value = JSON.stringify(value, null, 2);
+            } else if (key === "paidAt" && value) {
+              value = new Date(value).toLocaleString();
+            }
+            return (
+              <p key={key}>
+                <strong>{key}:</strong> {value ?? "N/A"}
+              </p>
+            );
+          })}
 
           <div className="text-end mt-4">
-            <button
-              className="btn btn-outline-primary"
-              onClick={downloadInvoice}
-            >
+            <button className="btn btn-outline-primary" onClick={downloadInvoice}>
               🧾 Download Invoice
             </button>
           </div>
