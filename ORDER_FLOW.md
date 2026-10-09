@@ -12,7 +12,7 @@ Admin Dashboard now contains Manage orders. Advance Pending → Preparing → Ou
 
 - Deploy both `backend` on Render and `client` on Vercel from the same commit.
 - Render requires `URI` and `JWT_SECRET`. Online payments also require `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET`; enable automatic capture in the Razorpay dashboard. The public key is returned by the backend when opening checkout.
-- Keep the frontend origin in the backend allowlist or `CORS_ORIGINS` (comma-separated). `VITE_API_URL` points to the Render backend.
+- Production API requests use the same-origin Vercel function in `client/api/proxy.js`, which forwards only to the fixed Render API. New preview domains do not require CORS allowlist edits. Set the Vercel project root to `client` so its functions and `vercel.json` are deployed. Local development still uses `VITE_API_URL` and the backend's localhost allowlist.
 - Run `npm test` in backend and client; run `npm run lint` and `npm run build` in client. Payment tests mock Razorpay and do not charge money or write production orders.
 - Browser acceptance: browse logged out, add an item, refresh, place order, sign in or sign up, confirm cart survived, place a COD order, open/download its receipt, advance its status as admin, and verify customer progress/location. Use Razorpay test mode to check online payment, cancelled checkout, and captured-payment recovery before accepting real payments.
 

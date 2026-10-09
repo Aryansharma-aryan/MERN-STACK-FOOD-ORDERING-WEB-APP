@@ -4,6 +4,8 @@ import React, { useState, useEffect, useMemo } from "react";
 const DisplayData = ({ setCart = () => {} }) => {
   const [foodData, setFoodData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState("");
+  const [retry, setRetry] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [sortOrder, setSortOrder] = useState("");
@@ -15,10 +17,13 @@ const DisplayData = ({ setCart = () => {} }) => {
   //   🔥 FETCH DATA SUPER FAST
   // ----------------------------
   useEffect(() => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 60000);
+    let active = true;
+    setLoading(true);
+    setFetchError("");
     const fetchData = async () => {
       try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 60000);
 
         const res = await fetch(
           `${API_URL}/api/food`,
@@ -42,16 +47,18 @@ const DisplayData = ({ setCart = () => {} }) => {
           price: Number(item.price) || 0,
         }));
 
-        setFoodData(finalData);
+        if (active) setFoodData(finalData);
       } catch (err) {
-        console.error("FETCH ERROR:", err);
+        if (active) setFetchError(err.name === "AbortError" ? "The menu is taking too long to load. Please retry." : "Unable to load the menu. Please retry shortly.");
       } finally {
-        setLoading(false);
+        clearTimeout(timeout);
+        if (active) setLoading(false);
       }
     };
 
     fetchData();
-  }, []);
+    return () => { active = false; clearTimeout(timeout); controller.abort(); };
+  }, [retry]);
 
   // ----------------------------
   //   🔥 DEBOUNCE SEARCH
@@ -141,6 +148,11 @@ const DisplayData = ({ setCart = () => {} }) => {
         <div className="text-center mt-5">
           <div className="spinner-border text-danger" style={{ width: "5rem", height: "5rem" }} />
           <p className="mt-3 fw-bold text-danger">Loading menu...</p>
+        </div>
+      ) : fetchError ? (
+        <div className="alert alert-warning m-4" role="alert">
+          <p>{fetchError}</p>
+          <button className="btn btn-outline-primary" onClick={() => setRetry(value => value + 1)}>Retry loading menu</button>
         </div>
       ) : (
         <>
