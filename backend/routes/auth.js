@@ -1,11 +1,10 @@
+const { signup, loginUser } = require("../controller/accountController");
 const express = require("express");
 const router = express.Router();
 const { order, getOrder, deleteOrder, createOrder, verifyPayment, getPayments, detail, adminOrders, updateStatus, location, reconcile } = require("../controller/commerceController");
 
 // Controllers
 const {
-  signup,
-  loginUser,
   getFood,
   addFood,
   addBulk,
@@ -19,17 +18,20 @@ const {
 // Middlewares
 const authMiddleware = require("../middleware/AuthMiddleware");
 const isAdmin = require("../middleware/AdminMiddleware");
+const { authLimit } = require("../middleware/authLimit");
+router.get("/payment-config", require("../controller/commerceController").paymentConfig);
 
 // =========================
 // Auth Routes
 // =========================
-router.post("/signup", signup);
-router.post("/login", loginUser);
+router.post("/signup", authLimit, signup);
+router.post("/login", authLimit, loginUser);
 
 // =========================
 // Public Routes
 // =========================
 router.get("/food", getFood);
+router.get("/restaurants", require("../controller/restaurantsController").demos);
 
 // =========================
 // User-Protected Routes

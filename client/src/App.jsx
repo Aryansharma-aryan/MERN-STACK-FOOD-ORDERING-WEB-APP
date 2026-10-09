@@ -22,6 +22,15 @@ export default function App() {
   const [cartKey, setCartKey] = useState(() => hasSession() ? `cart_${localStorage.getItem("userId")}` : "cart_guest");
   const [cart, setCart] = useState(() => readCart(hasSession() ? `cart_${localStorage.getItem("userId")}` : "cart_guest"));
   useEffect(() => { localStorage.setItem(cartKey, JSON.stringify(cart)); }, [cart, cartKey]);
+  useEffect(() => {
+    const expired = () => {
+      localStorage.removeItem("authToken");
+      setAuthenticated(false); setAdmin(false);
+      navigate("/login", { state: { from: window.location.pathname + window.location.search }, replace: true });
+    };
+    window.addEventListener("session-expired", expired);
+    return () => window.removeEventListener("session-expired", expired);
+  }, [navigate]);
   const handleLogin = () => {
     const key = `cart_${localStorage.getItem("userId")}`;
     const merged = mergeCarts(readCart(key), cartKey === "cart_guest" ? cart : []);

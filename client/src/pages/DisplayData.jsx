@@ -1,7 +1,7 @@
 import { API_URL } from "../config/api";
 import React, { useState, useEffect, useMemo } from "react";
 
-const DisplayData = ({ setCart = () => {} }) => {
+const DisplayData = ({ cart = [], setCart = () => {}, restaurant }) => {
   const [foodData, setFoodData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState("");
@@ -117,19 +117,23 @@ const DisplayData = ({ setCart = () => {} }) => {
   //   🔥 CART HANDLER
   // ----------------------------
   const addToCart = (food) => {
+    const restaurantId = restaurant?.id || "demo-food-mania";
+    const replace = cart.length && (cart[0].restaurantId || "demo-food-mania") !== restaurantId;
+    if (replace && !window.confirm("Your cart contains another demo restaurant's items. Replace them with this restaurant?")) return;
+    const selectedFood = { ...food, restaurantId, restaurantName: restaurant?.name || "Food Mania Demo Kitchen" };
     setCart((prev) => {
+      if (replace) return [selectedFood];
       const existing = prev.find((i) => i._id === food._id);
       if (existing) {
-        alert(`Updated ${food.name} quantity!`);
         return prev.map((i) =>
           i._id === food._id
-            ? { ...i, quantity: i.quantity + food.quantity }
+            ? { ...i, quantity: Math.min(99, i.quantity + food.quantity) }
             : i
         );
       }
-      alert(`${food.name} added to cart!`);
-      return [...prev, food];
+      return [...prev, selectedFood];
     });
+    alert(`${food.name} added to your demo cart.`);
   };
 
   const goToPage = (p) => {

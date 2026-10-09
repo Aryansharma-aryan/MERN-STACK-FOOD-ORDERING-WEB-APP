@@ -3,6 +3,7 @@ const crypto = require("crypto");
 const Razorpay = require("razorpay");
 const Order = require("../models/OrderModel");
 const Food = require("../models/FoodData");
+const demoRestaurants = require("../data/demoRestaurants");
 
 function fail(status, message) { throw Object.assign(new Error(message), { status }); }
 function coordinates(value) {
@@ -16,12 +17,14 @@ function createCommerce({ OrderModel = Order, FoodModel = Food, gateway, secret 
   const paymentGateway = () => {
     if (gateway) return gateway;
     if (!process.env.RAZORPAY_KEY_ID || !secret) fail(503, "Online payment is unavailable. Please choose cash on delivery.");
+    if (!process.env.RAZORPAY_KEY_ID.startsWith("rzp_test_")) fail(503, "This demo requires Razorpay test keys. Real payments are disabled.");
     gateway = new Razorpay({ key_id: process.env.RAZORPAY_KEY_ID, key_secret: secret });
     return gateway;
   };
   const wrap = handler => async (req, res) => {
     try { await handler(req, res); } catch (error) {
       const status = error.status || (error.name === "ValidationError" || error.name === "CastError" ? 400 : 500);
+      if (status === 500) console.error("Commerce request failed", { operation: req.path, type: error.name, code: error.code });
       res.status(status).json({ message: status === 500 ? "Unable to complete the request. Please try again." : error.message });
     }
   };
@@ -35,39 +38,48 @@ function createCommerce({ OrderModel = Order, FoodModel = Food, gateway, secret 
     if (payment.order_id !== order.razorpayOrderId || payment.amount !== Math.round(order.totalAmount * 100) || payment.currency !== "INR") fail(400, "Payment does not match this order.");
     if (payment.status !== "captured") fail(409, "Payment is not captured yet. Refresh payment status shortly; do not pay again.");
     const paidAt = new Date(payment.created_at * 1000);
-    await OrderModel.updateOne({ _id: order._id, paymentStatus: { $ne: "paid" } }, {
+    await OrderModel.updateOne({ _id: order._id, status: "Awaiting Payment", paymentStatus: { $ne: "paid" } }, {
       $set: { paymentStatus: "paid", paymentId: payment.id, paidAt, status: "Pending" },
       $push: { statusHistory: { status: "Pending", timestamp: new Date() } },
     });
-    return OrderModel.findById(order._id);
+    const updated = await OrderModel.findById(order._id);
+    if (!updated || updated.paymentStatus !== "paid") fail(409, "Order state changed. Contact support with your payment reference.");
+    return updated;
   }
   return {
     order: wrap(async (req, res) => {
-      const { items, deliveryAddress, phone, customerLocation, paymentMethod = "cod", requestId } = req.body;
+      const { items, deliveryAddress, phone, customerLocation, paymentMethod = "cod", requestId, restaurantId = "demo-food-mania" } = req.body || {};
+      const restaurant = demoRestaurants.find(value => value.id === restaurantId);
+      if (!restaurant) fail(400, "Choose one of the demo restaurants to place a demo order.");
       if (!Array.isArray(items) || !items.length || items.length > 100) fail(400, "Add between 1 and 100 products.");
       if (typeof requestId !== "string" || !/^[a-zA-Z0-9-]{8,80}$/.test(requestId)) fail(400, "A valid checkout reference is required.");
       const previous = await OrderModel.findOne({ userId: req.user.id, requestId });
-      if (previous) return res.json({ order: previous });
+      if (previous) {
+        if (previous.status === "Cancelled") fail(409, "This checkout was cancelled. Start a new checkout from your cart.");
+        return res.json({ order: previous });
+      }
       if (typeof deliveryAddress !== "string" || deliveryAddress.trim().length < 10 || deliveryAddress.length > 500) fail(400, "Enter a complete delivery address.");
-      if (typeof phone !== "string" || !/^\+?[\d\s()-]{10,20}$/.test(phone)) fail(400, "Enter a valid contact phone number.");
+      if (typeof phone !== "string" || !/^\+?[\d\s()-]{10,20}$/.test(phone) || !/^\d{10,15}$/.test(phone.replace(/\D/g, ""))) fail(400, "Enter a valid contact phone number.");
       if (!["cod", "online"].includes(paymentMethod)) fail(400, "Invalid payment method.");
+      if (paymentMethod === "online") paymentGateway();
       if (customerLocation && !coordinates(customerLocation)) fail(400, "Invalid delivery coordinates.");
       const quantities = new Map();
       for (const item of items) {
-        if (!mongoose.isValidObjectId(item._id) || !Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 99) fail(400, "Invalid product or quantity.");
-        quantities.set(item._id, (quantities.get(item._id) || 0) + item.quantity);
-        if (quantities.get(item._id) > 99) fail(400, "Maximum quantity is 99 per product.");
+        if (!item || typeof item._id !== "string" || !mongoose.isValidObjectId(item._id) || !Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 99) fail(400, "Invalid product or quantity.");
+        const id = item._id.toLowerCase();
+        quantities.set(id, (quantities.get(id) || 0) + item.quantity);
+        if (quantities.get(id) > 99) fail(400, "Maximum quantity is 99 per product.");
       }
       const foods = await FoodModel.find({ _id: { $in: [...quantities.keys()] } });
       if (foods.length !== quantities.size) fail(400, "A product is no longer available. Update your cart.");
       const snapshots = foods.map(food => ({ foodId: food._id, name: food.name, price: food.price, image: food.image, quantity: quantities.get(String(food._id)) }));
-      if (snapshots.some(item => !Number.isFinite(item.price) || item.price < 0)) fail(400, "A product has an invalid price.");
+      if (snapshots.some(item => !Number.isFinite(item.price) || item.price <= 0 || item.price > 100000)) fail(400, "A product has an invalid price.");
       const subtotalPaise = snapshots.reduce((sum, item) => sum + Math.round(item.price * 100) * item.quantity, 0);
       const taxPaise = Math.round(subtotalPaise * 0.05);
       const status = paymentMethod === "online" ? "Awaiting Payment" : "Pending";
       const data = { userId: req.user.id, requestId, items: snapshots, subtotal: subtotalPaise / 100, tax: taxPaise / 100,
         totalAmount: (subtotalPaise + taxPaise) / 100, deliveryAddress: deliveryAddress.trim(), phone: phone.trim(),
-        customerLocation: customerLocation || null, paymentMethod, status, statusHistory: [{ status }] };
+        customerLocation: customerLocation || null, paymentMethod, status, restaurant: { id: restaurant.id, name: restaurant.name }, isDemo: true, statusHistory: [{ status }] };
       let order;
       try { order = await OrderModel.create(data); }
       catch (error) { if (error.code !== 11000) throw error; order = await OrderModel.findOne({ userId: req.user.id, requestId }); }
@@ -78,6 +90,24 @@ function createCommerce({ OrderModel = Order, FoodModel = Food, gateway, secret 
       res.json(await OrderModel.find({ userId: req.params.userId }).sort({ createdAt: -1 }));
     }),
     detail: wrap(async (req, res) => res.json({ order: await owned(req, req.params.orderId) })),
+    paymentConfig: (_req, res) => res.json({ onlineAvailable: Boolean(process.env.RAZORPAY_KEY_ID?.startsWith("rzp_test_") && secret), cashOnDeliveryAvailable: true, mode: "test" }),
+    webhook: wrap(async (req, res) => {
+      const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+      if (!webhookSecret) fail(503, "Payment notifications are not configured.");
+      const signature = req.headers["x-razorpay-signature"];
+      if (!Buffer.isBuffer(req.body) || typeof signature !== "string" || !/^[a-f0-9]{64}$/.test(signature)) fail(400, "Invalid webhook signature.");
+      const expected = crypto.createHmac("sha256", webhookSecret).update(req.body).digest();
+      if (!crypto.timingSafeEqual(expected, Buffer.from(signature, "hex"))) fail(400, "Invalid webhook signature.");
+      let event;
+      try { event = JSON.parse(req.body.toString("utf8")); } catch { fail(400, "Invalid webhook body."); }
+      if (event.event !== "payment.captured") return res.json({ received: true });
+      const payment = event.payload?.payment?.entity;
+      if (!payment || typeof payment.order_id !== "string" || typeof payment.id !== "string") fail(400, "Missing payment details.");
+      const order = await OrderModel.findOne({ razorpayOrderId: payment.order_id });
+      if (!order) fail(503, "Order is not ready for payment reconciliation.");
+      await savePaid(order, payment);
+      res.json({ received: true });
+    }),
     adminOrders: wrap(async (_req, res) => res.json(await OrderModel.find().sort({ createdAt: -1 }).limit(200))),
     updateStatus: wrap(async (req, res) => {
       const order = await owned(req, req.params.orderId);

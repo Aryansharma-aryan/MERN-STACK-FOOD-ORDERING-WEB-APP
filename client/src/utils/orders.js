@@ -1,22 +1,31 @@
-import { API_BASE } from "../config/api";
+import { API_BASE } from "../config/api.js";
 export async function request(path, options = {}) {
+  const token = localStorage.getItem("authToken");
   const response = await fetch(`${API_BASE}${path}`, {
     ...options,
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("authToken")}`, ...options.headers },
+    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers },
     signal: options.signal || AbortSignal.timeout(65000),
   });
-  const data = await response.json();
+  const content = await response.text();
+  let data;
+  try { data = content ? JSON.parse(content) : {}; }
+  catch { throw new Error("The service returned an unexpected response. Please retry shortly."); }
+  if (response.status === 401 && token) window.dispatchEvent(new Event("session-expired"));
   if (!response.ok) throw Object.assign(new Error(data.message || data.error || "Request failed."), { status: response.status });
   return data;
 }
 let checkoutScript;
 export async function payForOrder(order) {
+  if (order.razorpayOrderId) {
+    try { return await request(`/order-details/${order._id}/reconcile`, { method: "POST" }); }
+    catch (error) { if (error.status !== 409) throw error; }
+  }
   if (!window.Razorpay) {
     if (!checkoutScript) checkoutScript = new Promise((resolve, reject) => {
       const script = document.createElement("script");
       script.src = "https://checkout.razorpay.com/v1/checkout.js";
       const timer = setTimeout(() => { checkoutScript = null; script.remove(); reject(new Error("Payment checkout timed out. Please retry.")); }, 20000);
-      script.onload = () => { clearTimeout(timer); resolve(); };
+      script.onload = () => { clearTimeout(timer); if (window.Razorpay) resolve(); else { checkoutScript = null; reject(new Error("Payment checkout did not load. Please retry.")); } };
       script.onerror = () => { clearTimeout(timer); checkoutScript = null; script.remove(); reject(new Error("Unable to load payment checkout. Please retry.")); };
       document.body.appendChild(script);
     });

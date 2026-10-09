@@ -1,0 +1,32 @@
+const express = require("express");
+const cors = require("cors");
+const mongoose = require("mongoose");
+const corsOptions = require("./config/cors");
+const routes = require("./routes/auth");
+const { webhook } = require("./controller/commerceController");
+const app = express();
+app.disable("x-powered-by");
+app.use((req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  res.setHeader("Cache-Control", "no-store");
+  next();
+});
+app.use(cors(corsOptions));
+app.get("/healthz", (_req, res) => res.sendStatus(mongoose.connection.readyState === 1 ? 204 : 503));
+app.get("/api/health", (_req, res) => res.status(mongoose.connection.readyState === 1 ? 200 : 503).json({ ready: mongoose.connection.readyState === 1, apiVersion: 2 }));
+app.get("/", (_req, res) => res.json({ service: "Food Mania API", apiVersion: 2 }));
+app.use("/api", (_req, res, next) => mongoose.connection.readyState === 1 ? next() : res.status(503).json({ message: "Database is temporarily unavailable. Please retry shortly." }));
+app.post("/api/webhooks/razorpay", express.raw({ type: "application/json", limit: "256kb" }), webhook);
+app.use(express.json({ limit: "256kb" }));
+app.use("/api", routes);
+app.use((_req, res) => res.status(404).json({ message: "Route not found. Check that the latest backend is deployed." }));
+app.use((error, _req, res, _next) => {
+  if (error.message?.includes("CORS")) return res.status(403).json({ message: "This frontend origin is not allowed." });
+  if (error.type === "entity.parse.failed") return res.status(400).json({ message: "Invalid JSON request." });
+  if (error.type === "entity.too.large") return res.status(413).json({ message: "Request is too large." });
+  if (error.name === "ValidationError" || error.name === "CastError") return res.status(400).json({ message: "Invalid request data." });
+  console.error("Request failed", { type: error.name, code: error.code });
+  res.status(500).json({ message: "Unable to complete the request. Please retry." });
+});
+module.exports = app;

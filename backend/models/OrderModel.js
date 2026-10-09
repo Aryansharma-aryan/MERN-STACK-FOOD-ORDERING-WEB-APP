@@ -15,6 +15,8 @@ const orderSchema = new mongoose.Schema({
   paidAt: Date,
   locationUpdatedAt: Date,
   requestId: String,
+  restaurant: { id: String, name: String },
+  isDemo: { type: Boolean, default: true },
   
   // Customer's Delivery Location
   customerLocation: {

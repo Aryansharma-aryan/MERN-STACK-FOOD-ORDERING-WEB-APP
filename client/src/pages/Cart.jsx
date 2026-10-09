@@ -5,6 +5,7 @@ export default function Cart({ cart, setCart }) {
   const subtotal = cart.reduce((sum, item) => sum + Number(item.price) * Number(item.quantity), 0);
   const tax = Math.round(subtotal * 5) / 100;
   return <div className="container my-5"><h2>Your cart</h2>
+    <p>{cart[0]?.restaurantName || "Food Mania Demo Kitchen"} · Demo order — no real food delivery.</p>
     {!cart.length ? <p>Your cart is empty. <Link to="/home">Browse the menu</Link></p> : <>
       {cart.map(item => <div className="card p-3 mb-3" key={item._id}><div className="d-flex align-items-center gap-3 flex-wrap">
         <img src={item.image} alt={item.name} width="90" height="75" style={{ objectFit: "cover" }} />

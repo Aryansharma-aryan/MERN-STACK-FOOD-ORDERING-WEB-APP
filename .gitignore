@@ -5,6 +5,8 @@ client/node_modules/
 
 # Environment files
 .env
+.env.*
+!.env.example
 backend/.env
 client/.env
 

@@ -1,51 +1,19 @@
-// middleware/authMiddleware.js
-
 const jwt = require("jsonwebtoken");
-
-// Use environment variable or fallback for development
-const JWT_SECRET = process.env.JWT_SECRET || "TFYUG67T67T762";
-
-const authMiddleware = (req, res, next) => {
-  let token;
-
-  // 1️⃣ Check "Authorization: Bearer <token>" header
-  if (
-    req.headers.authorization &&
-    req.headers.authorization.startsWith("Bearer ")
-  ) {
-    token = req.headers.authorization.split(" ")[1];
-  }
-
-  // 2️⃣ Or check cookies if token stored in cookies
-  else if (req.cookies?.token) {
-    token = req.cookies.token;
-  }
-
-  // 3️⃣ No token → Unauthorized
-  if (!token) {
-    return res.status(401).json({
-      success: false,
-      message: "Access denied. Token is missing.",
-    });
-  }
-
+const mongoose = require("mongoose");
+const User = require("../models/User");
+module.exports = async (req, res, next) => {
+  const token = req.headers.authorization?.startsWith("Bearer ") ? req.headers.authorization.slice(7) : null;
+  if (!token) return res.status(401).json({ message: "Please log in to continue." });
+  if (!process.env.JWT_SECRET) return res.status(503).json({ message: "Authentication is unavailable." });
+  let decoded;
   try {
-    // 4️⃣ Verify token
-    const decoded = jwt.verify(token, JWT_SECRET);
-
-    // Attach user info to request
-    req.user = {
-      id: decoded.id,
-      role: decoded.role || "user",
-    };
-
+    decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ["HS256"] });
+    if (!mongoose.isValidObjectId(decoded.id)) throw new Error("Invalid user");
+  } catch { return res.status(401).json({ message: "Your session has expired. Please log in again." }); }
+  try {
+    const user = await User.findById(decoded.id).select("role name").lean();
+    if (!user) return res.status(401).json({ message: "Account not found. Please log in again." });
+    req.user = { id: String(user._id), role: user.role, name: user.name };
     next();
-  } catch (error) {
-    return res.status(403).json({
-      success: false,
-      message: "Invalid or expired token.",
-    });
-  }
+  } catch (error) { next(error); }
 };
-
-module.exports = authMiddleware;

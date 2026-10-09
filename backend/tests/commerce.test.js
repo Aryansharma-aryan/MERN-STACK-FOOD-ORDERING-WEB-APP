@@ -110,6 +110,36 @@ test("coordinate validation rejects non-finite values", () => {
   assert.equal(coordinates({ lat: NaN, lng: 0 }), false);
   assert.equal(coordinates({ lat: 0, lng: Infinity }), false);
 });
+test("null cart entries and invalid phone numbers return 400 rather than 500", async () => {
+  const f = fixture();
+  assert.equal((await f.call("order", { body: { ...f.body, items: [null] } })).statusCode, 400);
+  assert.equal((await f.call("order", { body: { ...f.body, phone: "          " } })).statusCode, 400);
+  assert.equal((await f.call("order", { body: undefined })).statusCode, 400);
+});
+test("cancelled checkout cannot be reused as a successful order", async () => {
+  const f = fixture(); const order = (await f.call("order")).body.order;
+  await f.call("deleteOrder", { params: { orderId: String(order._id) } });
+  assert.equal((await f.call("order")).statusCode, 409);
+});
+test("orders store the selected demo restaurant and reject real map listings", async () => {
+  const f = fixture();
+  const result = await f.call("order", { body: { ...f.body, restaurantId: "demo-pizza-house" } });
+  assert.equal(result.body.order.restaurant.name, "Demo Pizza House"); assert.equal(result.body.order.isDemo, true);
+  assert.equal((await f.call("order", { body: { ...f.body, requestId: "another-checkout", restaurantId: "node-123" } })).statusCode, 400);
+});
+test("signed captured-payment webhooks recover orders and duplicate delivery is harmless", async () => {
+  process.env.RAZORPAY_WEBHOOK_SECRET = "test-only-webhook-secret";
+  const f = fixture(); const order = (await f.call("order", { body: { ...f.body, paymentMethod: "online" } })).body.order;
+  await f.call("createOrder", { body: { orderId: String(order._id) } });
+  const body = Buffer.from(JSON.stringify({ event: "payment.captured", payload: { payment: { entity: f.payment } } }));
+  assert.equal((await f.call("webhook", { body, headers: { "x-razorpay-signature": "0".repeat(64) } })).statusCode, 400);
+  const signature = crypto.createHmac("sha256", process.env.RAZORPAY_WEBHOOK_SECRET).update(body).digest("hex");
+  const req = { body, headers: { "x-razorpay-signature": signature } };
+  assert.equal((await f.call("webhook", req)).statusCode, 200);
+  assert.equal(order.paymentStatus, "paid");
+  await f.call("webhook", req); assert.equal(order.statusHistory.length, 2);
+  delete process.env.RAZORPAY_WEBHOOK_SECRET;
+});
 test("HTTP routes expose the menu to guests and require authentication for checkout, receipts and admin changes", async () => {
   process.env.JWT_SECRET = "test-only-http-secret";
   const express = require("express");

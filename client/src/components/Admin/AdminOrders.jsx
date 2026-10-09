@@ -24,7 +24,7 @@ export default function AdminOrders() {
     return () => navigator.geolocation.clearWatch(watch);
   }, [sharing]);
   async function update(order) {
-    if (nextStatus[order.status] === "Delivered" && order.paymentMethod === "cod" && !window.confirm("Confirm delivery and that cash payment has been collected?")) return;
+    if (nextStatus[order.status] === "Delivered" && order.paymentMethod === "cod" && !window.confirm("Confirm demo delivery and simulated cash payment?")) return;
     setBusy(order._id);
     try {
       await request(`/admin/orders/${order._id}/status`, { method: "PATCH", body: JSON.stringify({ status: nextStatus[order.status] }) });
@@ -46,6 +46,7 @@ export default function AdminOrders() {
     {!orders.length && <p>No orders yet.</p>}
     {orders.map(order => <div className="card p-3 mb-3" key={order._id}>
       <strong>#{order._id.slice(-8)} · {order.status} · {money(order.totalAmount)}</strong>
+      <p>{order.restaurant?.name || "Food Mania Demo Kitchen"} · Demo order</p>
       <p>{order.items.map(item => `${item.name} × ${item.quantity}`).join(", ")}</p>
       <p>{order.deliveryAddress} · {order.phone}<br />{order.paymentMethod === "cod" ? "Cash on delivery" : "Online"} — {order.paymentStatus}</p>
       {nextStatus[order.status] && <button className="btn btn-primary" disabled={busy === order._id} onClick={() => update(order)}>Mark {nextStatus[order.status]}</button>}

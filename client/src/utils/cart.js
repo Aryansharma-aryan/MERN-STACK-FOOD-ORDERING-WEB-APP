@@ -5,6 +5,7 @@ export function readCart(key) {
   } catch { return []; }
 }
 export function mergeCarts(saved, guest) {
+  if (guest.length && saved.length && (guest[0].restaurantId || "demo-food-mania") !== (saved[0].restaurantId || "demo-food-mania")) return guest;
   const merged = new Map(saved.map(item => [item._id, { ...item }]));
   for (const item of guest) {
     const existing = merged.get(item._id);

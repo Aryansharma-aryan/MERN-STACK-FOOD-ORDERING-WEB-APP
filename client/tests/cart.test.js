@@ -13,3 +13,8 @@ test("invalid stored carts are safe and expired sessions require login at checko
   storage.set("authToken", `header.${btoa(JSON.stringify({ exp: 1 }))}.signature`); assert.equal(hasSession(), false);
   storage.set("authToken", `header.${btoa(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 }))}.signature`); assert.equal(hasSession(), true);
 });
+test("login does not merge different demo restaurants into the same cart", () => {
+  const saved = [{ _id: "pizza", quantity: 1, restaurantId: "demo-pizza-house" }];
+  const guest = [{ _id: "curry", quantity: 2, restaurantId: "demo-spice-table" }];
+  assert.deepEqual(mergeCarts(saved, guest), guest);
+});
