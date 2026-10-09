@@ -1,3 +1,4 @@
+import { API_URL } from "../config/api";
 import React from "react";
 import { useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
@@ -18,7 +19,7 @@ export default function Login({ handleLogin }) {
       toast.loading("Logging in...", { toastId: "login" });
 
       const response = await fetch(
-        "https://mern-stack-food-ordering-web-app-4sg8.onrender.com/api/login",
+        `${API_URL}/api/login`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

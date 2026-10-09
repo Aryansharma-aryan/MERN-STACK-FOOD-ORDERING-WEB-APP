@@ -1,3 +1,4 @@
+import { API_URL } from "../config/api";
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import jsPDF from "jspdf";
@@ -21,7 +22,7 @@ export default function PaymentReceipt() {
         }
 
         const response = await axios.get(
-          `https://mern-stack-food-ordering-web-app-4sg8.onrender.com/api/payment/${paymentId}`,
+          `${API_URL}/api/payment/${paymentId}`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }

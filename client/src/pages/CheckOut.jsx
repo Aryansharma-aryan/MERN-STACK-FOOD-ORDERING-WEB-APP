@@ -1,3 +1,4 @@
+import { API_URL } from "../config/api";
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -8,7 +9,6 @@ const Checkout = () => {
   const [razorpayLoaded, setRazorpayLoaded] = useState(false);
   const [cartTotal, setCartTotal] = useState(0);
 
-  const API_URL = (import.meta.env.VITE_API_URL || "https://mern-stack-food-ordering-web-app-4sg8.onrender.com").replace(/\/+$/, "");
   const RZP_KEY = import.meta.env.VITE_RAZORPAY_KEY_ID;
 
   useEffect(() => {

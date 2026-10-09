@@ -1,3 +1,4 @@
+import { API_URL } from "../config/api";
 import React, { useState, useEffect, memo } from "react";
 import axios from "axios";
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -20,7 +21,7 @@ const Order = () => {
         if (!token) throw new Error("Authentication token missing. Please log in again.");
 
         const { data } = await axios.get(
-          `https://mern-stack-food-ordering-web-app-4sg8.onrender.com/api/orders/${userId}`,
+          `${API_URL}/api/orders/${userId}`,
           {
             headers: {
               "Content-Type": "application/json",

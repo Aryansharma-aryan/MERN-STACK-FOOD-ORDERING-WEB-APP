@@ -1,3 +1,4 @@
+import { API_URL } from "../config/api";
 import React from "react";
 import { useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
@@ -6,7 +7,6 @@ import "react-toastify/dist/ReactToastify.css";
 
 export default function Signup() {
   const navigate = useNavigate();
-  const API_URL = (import.meta.env.VITE_API_URL || "https://mern-stack-food-ordering-web-app-4sg8.onrender.com").replace(/\/+$/, "");
 
   const {
     register,

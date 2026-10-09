@@ -1,3 +1,4 @@
+import { API_URL } from "../../config/api";
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
@@ -28,7 +29,7 @@ const AdminDashboard = () => {
 
   // Create axios instance with token
   const axiosInstance = axios.create({
-    baseURL: "https://mern-stack-food-ordering-web-app-4sg8.onrender.com/api",
+    baseURL: `${API_URL}/api`,
     headers: { Authorization: `Bearer ${token}` },
   });
 

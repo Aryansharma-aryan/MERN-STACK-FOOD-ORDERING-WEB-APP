@@ -1,3 +1,4 @@
+import { API_URL } from "../config/api";
 import React, { useState, useEffect, useMemo } from "react";
 
 const DisplayData = ({ setCart = () => {} }) => {
@@ -14,25 +15,17 @@ const DisplayData = ({ setCart = () => {} }) => {
   //   🔥 FETCH DATA SUPER FAST
   // ----------------------------
   useEffect(() => {
-    const cached = sessionStorage.getItem("foodCache");
-
-    if (cached) {
-      setFoodData(JSON.parse(cached));
-      setLoading(false);
-      return;
-    }
-
     const fetchData = async () => {
       try {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 7000);
+        const timeout = setTimeout(() => controller.abort(), 60000);
 
         const res = await fetch(
-          "https://mern-stack-food-ordering-web-app-4sg8.onrender.com/api/food",
+          `${API_URL}/api/food`,
           {
             credentials: "include",
             mode: "cors",
-            cache: "force-cache",
+            cache: "no-store",
             signal: controller.signal,
           }
         );
@@ -49,7 +42,6 @@ const DisplayData = ({ setCart = () => {} }) => {
           price: Number(item.price) || 0,
         }));
 
-        sessionStorage.setItem("foodCache", JSON.stringify(finalData));
         setFoodData(finalData);
       } catch (err) {
         console.error("FETCH ERROR:", err);

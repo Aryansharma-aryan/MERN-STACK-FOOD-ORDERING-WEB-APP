@@ -1,7 +1,8 @@
+import { API_URL } from "../config/api";
 import { useEffect } from "react";
 import { io } from "socket.io-client";
 
-const socket = io("http://192.168.1.5:3100");
+const socket = io(API_URL, { withCredentials: true });
 
 const DeliveryLocationUpdater = ({ deliveryPersonId }) => {
   useEffect(() => {

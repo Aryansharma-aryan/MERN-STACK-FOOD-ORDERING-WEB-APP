@@ -1,3 +1,4 @@
+import { API_URL } from "../config/api";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PropTypes from "prop-types";
@@ -86,7 +87,7 @@ export default function Cart({ cart, setCart }) {
 
         try {
           const response = await fetch(
-            `https://mern-stack-food-ordering-web-app-4sg8.onrender.com/api/orders`,
+            `${API_URL}/api/orders`,
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },

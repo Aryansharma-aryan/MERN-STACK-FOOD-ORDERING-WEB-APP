@@ -1,7 +1,8 @@
+import { API_URL } from "../config/api";
 import React, { useEffect, useState } from "react";
 import { io } from "socket.io-client";
 
-const socket = io("http://192.168.1.5:3100"); // Use your backend IP
+const socket = io(API_URL, { withCredentials: true });
 
 const OrderTrackingMap = ({ latitude, longitude }) => {
   const [liveLocation, setLiveLocation] = useState({ lat: latitude, lng: longitude });

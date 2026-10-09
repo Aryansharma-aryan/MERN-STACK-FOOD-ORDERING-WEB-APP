@@ -13,37 +13,9 @@ const server = http.createServer(app);
 // ================================
 // 1️⃣ CORS Configuration
 // ================================
-const allowedOrigins = [
-  /^https?:\/\/localhost(:\d+)?$/,
-  "https://mern-stack-food-ordering-web-app.vercel.app",
-  "https://mern-stack-food-ordering-web-9eturccao.vercel.app",
-];
-
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  console.log("🧭 Incoming Origin:", origin);
-
-  if (
-    origin &&
-    allowedOrigins.some(o => (o instanceof RegExp ? o.test(origin) : o === origin))
-  ) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-    res.setHeader("Vary", "Origin");
-    res.setHeader("Access-Control-Allow-Credentials", "true");
-    res.setHeader(
-      "Access-Control-Allow-Methods",
-      "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-    );
-    res.setHeader(
-      "Access-Control-Allow-Headers",
-      "Content-Type, Authorization, X-Requested-With"
-    );
-    res.setHeader("Access-Control-Max-Age", "7200");
-  }
-
-  if (req.method === "OPTIONS") return res.sendStatus(204);
-  next();
-});
+const cors = require("cors");
+const corsOptions = require("./config/cors");
+app.use(cors(corsOptions));
 
 // ================================
 // 2️⃣ Basic Health Check
@@ -73,15 +45,7 @@ app.use("/api", authRoutes);
 // 6️⃣ Socket.IO Setup
 // ================================
 const io = new Server(server, {
-  cors: {
-    origin: (origin, cb) => {
-      if (!origin || allowedOrigins.some(o => (o instanceof RegExp ? o.test(origin) : o === origin))) {
-        cb(null, true);
-      } else cb(new Error("Not allowed by CORS"));
-    },
-    credentials: true,
-    methods: ["GET", "POST"]
-  }
+  cors: corsOptions
 });
 
 io.on("connection", socket => {
