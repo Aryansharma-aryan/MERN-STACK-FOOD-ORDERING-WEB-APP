@@ -1,12 +1,13 @@
 import { API_URL } from "../config/api";
 import React from "react";
 import { useForm } from "react-hook-form";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
-export default function Signup() {
+export default function Signup({ handleLogin }) {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const {
     register,
@@ -36,7 +37,12 @@ export default function Signup() {
 
       toast.success("🎉 Signup successful!");
       reset();
-      setTimeout(() => navigate("/login"), 1200);
+      localStorage.setItem("authToken", data.token);
+      localStorage.setItem("userId", data.userId);
+      localStorage.setItem("isAdmin", data.role === "admin" ? "true" : "false");
+      handleLogin();
+      const from = location.state?.from;
+      navigate(typeof from === "string" && from.startsWith("/") && !from.startsWith("//") ? from : "/home", { replace: true });
     } catch (error) {
       toast.error("Server error. Try again later.",error);
     }
@@ -107,7 +113,7 @@ export default function Signup() {
           <div className="text-center mt-3">
             <small>
               Already have an account?{" "}
-              <Link to="/login" className="text-warning text-decoration-none">
+              <Link to="/login" state={location.state} className="text-warning text-decoration-none">
                 Login
               </Link>
             </small>

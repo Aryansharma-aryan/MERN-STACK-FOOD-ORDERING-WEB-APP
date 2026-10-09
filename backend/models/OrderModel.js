@@ -2,8 +2,19 @@ const mongoose = require("mongoose");
 
 const orderSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-  items: [{ name: String, quantity: Number, price: Number, image: String }],
+  items: [{ foodId: { type: mongoose.Schema.Types.ObjectId, ref: "Food" }, name: String, quantity: Number, price: Number, image: String }],
   totalAmount: Number,
+  subtotal: Number,
+  tax: Number,
+  deliveryAddress: String,
+  phone: String,
+  paymentMethod: { type: String, enum: ["cod", "online"], default: "cod" },
+  paymentStatus: { type: String, enum: ["pending", "paid"], default: "pending" },
+  razorpayOrderId: String,
+  paymentId: String,
+  paidAt: Date,
+  locationUpdatedAt: Date,
+  requestId: String,
   
   // Customer's Delivery Location
   customerLocation: {
@@ -11,7 +22,7 @@ const orderSchema = new mongoose.Schema({
       lat: Number,
       lng: Number
     },
-    required: true
+    default: null
   },
   
   // Delivery Person Info
@@ -27,7 +38,7 @@ const orderSchema = new mongoose.Schema({
   // Order Status with Timestamps
   status: {
     type: String,
-    enum: ["Pending", "Preparing", "Out for Delivery", "Delivered", "Cancelled"],
+    enum: ["Awaiting Payment", "Pending", "Preparing", "Out for Delivery", "Delivered", "Cancelled"],
     default: "Pending",
   },
   statusHistory: [
@@ -40,5 +51,6 @@ const orderSchema = new mongoose.Schema({
   // Automatic Timestamps
 }, { timestamps: true });
 
+orderSchema.index({ userId: 1, requestId: 1 }, { unique: true, partialFilterExpression: { requestId: { $type: "string" } } });
 const Order = mongoose.model("Order", orderSchema);
 module.exports = Order;

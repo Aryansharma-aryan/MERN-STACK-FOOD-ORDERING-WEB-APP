@@ -1,12 +1,13 @@
 import { API_URL } from "../config/api";
 import React from "react";
 import { useForm } from "react-hook-form";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 export default function Login({ handleLogin }) {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const {
     register,
@@ -48,14 +49,8 @@ export default function Login({ handleLogin }) {
 
       handleLogin();
 
-      // Redirect: admins -> /admin, users -> /home
-      setTimeout(() => {
-        if (data.role === "admin") {
-          navigate("/admin", { replace: true });
-        } else {
-          navigate("/home", { replace: true });
-        }
-      }, 500);
+      const from = location.state?.from;
+      navigate(typeof from === "string" && from.startsWith("/") && !from.startsWith("//") ? from : data.role === "admin" ? "/admin" : "/home", { replace: true });
     } catch (err) {
       toast.update("login", {
         render: err.message || "❌ Login failed",
@@ -139,7 +134,7 @@ export default function Login({ handleLogin }) {
           <div className="text-center mt-3">
             <small>
               New user?{" "}
-              <Link to="/signup" className="text-warning">
+              <Link to="/signup" state={location.state} className="text-warning">
                 Signup
               </Link>
             </small>

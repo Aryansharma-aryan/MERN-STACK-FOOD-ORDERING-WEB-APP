@@ -1,5 +1,6 @@
 import { API_URL } from "../../config/api";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import AdminOrders from "./AdminOrders";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
@@ -28,10 +29,10 @@ const AdminDashboard = () => {
   }, [token, isAdmin, navigate]);
 
   // Create axios instance with token
-  const axiosInstance = axios.create({
+  const axiosInstance = useMemo(() => axios.create({
     baseURL: `${API_URL}/api`,
     headers: { Authorization: `Bearer ${token}` },
-  });
+  }), [token]);
 
   // Axios interceptor for 401/403
   useEffect(() => {
@@ -54,7 +55,7 @@ const AdminDashboard = () => {
   }, [axiosInstance, navigate]);
 
   // Fetch all foods
-  const fetchFoods = async () => {
+  const fetchFoods = useCallback(async () => {
     setLoading(true);
     setErrorMessage("");
     try {
@@ -65,11 +66,11 @@ const AdminDashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [axiosInstance]);
 
   useEffect(() => {
     if (token && isAdmin) fetchFoods();
-  }, [token, isAdmin]);
+  }, [token, isAdmin, fetchFoods]);
 
   // Add or update food
   const handleSubmit = async (e) => {
@@ -118,6 +119,7 @@ const AdminDashboard = () => {
   return (
     <div className="container mt-4">
       <h2>Admin Dashboard</h2>
+      <AdminOrders />
       {errorMessage && <div className="alert alert-danger">{errorMessage}</div>}
 
       {/* Add/Edit Food */}

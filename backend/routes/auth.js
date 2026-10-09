@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const { order, getOrder, deleteOrder, createOrder, verifyPayment, getPayments, detail, adminOrders, updateStatus, location, reconcile } = require("../controller/commerceController");
 
 // Controllers
 const {
@@ -10,12 +11,6 @@ const {
   addBulk,
   updateFood,
   deleteFood,
-  order,
-  getOrder,
-  deleteOrder,
-  createOrder,
-  verifyPayment,
-  getPayments,
   review,
   addFavorites,
   adminAnalytics,
@@ -46,7 +41,7 @@ router.delete("/orders/:orderId", authMiddleware, deleteOrder);
 // Razorpay Payment Routes
 router.post("/create-order", authMiddleware, createOrder);
 router.post("/verify-payment", authMiddleware, verifyPayment);
-router.get("/payment/:paymentId", getPayments);
+router.get("/payment/:paymentId", authMiddleware, getPayments);
 
 // Reviews & Favorites
 router.post("/:id/review", authMiddleware, review);
@@ -65,4 +60,9 @@ router.get("/admin/dashboard", authMiddleware, isAdmin, (req, res) => {
   res.json({ message: "Welcome to the admin dashboard!" });
 });
 
+router.get("/order-details/:orderId", authMiddleware, detail);
+router.post("/order-details/:orderId/reconcile", authMiddleware, reconcile);
+router.get("/admin/orders", authMiddleware, isAdmin, adminOrders);
+router.patch("/admin/orders/:orderId/status", authMiddleware, isAdmin, updateStatus);
+router.patch("/admin/orders/:orderId/location", authMiddleware, isAdmin, location);
 module.exports = router;

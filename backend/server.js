@@ -3,7 +3,6 @@ require("dotenv").config(); // Load env FIRST
 const express = require("express");
 const cookieParser = require("cookie-parser");
 const http = require("http");
-const { Server } = require("socket.io");
 const mongodb = require("./db/db");
 const authRoutes = require("./routes/auth");
 
@@ -42,19 +41,8 @@ app.get("/", (req, res) => res.send("✅ API is running."));
 app.use("/api", authRoutes);
 
 // ================================
-// 6️⃣ Socket.IO Setup
+// Order tracking uses authenticated order and admin location endpoints.
 // ================================
-const io = new Server(server, {
-  cors: corsOptions
-});
-
-io.on("connection", socket => {
-  console.log("🔌 Socket Connected:", socket.id);
-
-  socket.on("updateLocation", data => io.emit("locationUpdate", data));
-
-  socket.on("disconnect", () => console.log("❌ Socket Disconnected:", socket.id));
-});
 
 // ================================
 // 7️⃣ 404 Handler

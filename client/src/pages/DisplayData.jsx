@@ -110,9 +110,6 @@ const DisplayData = ({ setCart = () => {} }) => {
   //   🔥 CART HANDLER
   // ----------------------------
   const addToCart = (food) => {
-    const token = localStorage.getItem("authToken");
-    if (!token) return alert("⚠️ Please login to add items to cart.");
-
     setCart((prev) => {
       const existing = prev.find((i) => i._id === food._id);
       if (existing) {

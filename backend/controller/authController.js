@@ -2,27 +2,18 @@
 const mongoose = require("mongoose");
 const { validationResult } = require("express-validator");
 const jwt = require("jsonwebtoken");
-const Razorpay = require("razorpay");
-const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
 
 // Models
 const User = require("../models/User");
 const Food = require("../models/FoodData");
 const Order = require("../models/OrderModel");
-const Payment = require("../models/PaymentModel");
 const JWT_SECRET = process.env.JWT_SECRET;
-const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID;
-const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
 
 
 if (!JWT_SECRET) console.warn("⚠️ JWT_SECRET is not set in environment variables.");
-if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) console.warn("⚠️ Razorpay keys are not set.");
 
-const razorpay = new Razorpay({
-  key_id: RAZORPAY_KEY_ID,
-  key_secret: RAZORPAY_KEY_SECRET,
-});
+
 
 // ----------------- Controllers -----------------
 
@@ -35,7 +26,8 @@ const signup = async (req, res, next) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-    const { name, email, password, role = "user" } = req.body;
+    const { name, email, password } = req.body;
+    const role = "user";
     if (!name || !email || !password)
       return res.status(400).json({ message: "Name, email and password are required." });
 
@@ -177,129 +169,6 @@ const getFood = async (req, res) => {
   }
 };
 
-// Place order
-const order = async (req, res) => {
-  try {
-    const { items, totalPrice, userId, customerLocation } = req.body;
-
-    if (!items || !Array.isArray(items) || items.length === 0) return res.status(400).json({ error: "Order items are required." });
-    if (!customerLocation || typeof customerLocation.lat !== "number" || typeof customerLocation.lng !== "number") {
-      return res.status(400).json({ error: "Customer location (lat,lng) is required." });
-    }
-
-    const newOrder = new Order({
-      items,
-      totalPrice: Number(totalPrice) || 0,
-      userId,
-      customerLocation,
-      status: "Processing",
-      createdAt: new Date(),
-    });
-
-    await newOrder.save();
-    return res.status(201).json({ message: "Order placed successfully!", order: newOrder });
-  } catch (error) {
-    console.error("Order Error:", error);
-    return res.status(500).json({ error: "Error placing order", details: error.message });
-  }
-};
-
-// Get orders for user
-const getOrder = async (req, res) => {
-  try {
-    const userId = req.params.userId;
-    if (!userId) return res.status(400).json({ message: "userId required." });
-
-    const orders = await Order.find({ userId }).lean();
-    const ordersWithLocation = orders.map(o => ({ ...o, location: o.customerLocation || o.location || null }));
-
-    return res.status(200).json(ordersWithLocation);
-  } catch (error) {
-    console.error("Error fetching orders:", error);
-    return res.status(500).json({ message: "Failed to fetch orders." });
-  }
-};
-
-// Delete order
-const deleteOrder = async (req, res) => {
-  try {
-    const orderId = req.params.orderId || req.params.id;
-    if (!orderId || !mongoose.Types.ObjectId.isValid(orderId)) return res.status(400).json({ error: "Invalid orderId" });
-
-    const deletedOrder = await Order.findByIdAndDelete(orderId);
-    if (!deletedOrder) return res.status(404).json({ error: "Order not found" });
-
-    return res.json({ message: "Order deleted successfully", orderId: deletedOrder._id });
-  } catch (error) {
-    console.error("Error deleting order:", error);
-    return res.status(500).json({ error: "Internal Server Error" });
-  }
-};
-const createOrder = async (req, res) => {
-  try {
-    console.log("Request body:", req.body); // <- DEBUG
-    let { amount } = req.body;
-
-    if (!amount) return res.status(400).json({ error: "Amount is required" });
-
-    amount = Number(amount);
-    if (isNaN(amount) || amount <= 0) return res.status(400).json({ error: "Invalid amount" });
-
-    const options = { amount: Math.round(amount * 100), currency: "INR", receipt: `receipt_${Date.now()}`, payment_capture: 1 };
-    console.log("Razorpay options:", options); // <- DEBUG
-
-    const order = await razorpay.orders.create(options);
-    return res.json({ success: true, order });
-  } catch (error) {
-    console.error("🔥 Razorpay order error:", error); // <- DEBUG
-    return res.status(500).json({ error: "Internal Server Error", message: error.message });
-  }
-};
-
-
-// Verify payment
-const verifyPayment = async (req, res) => {
-  try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, amount, currency } = req.body;
-    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) return res.status(400).json({ error: "Missing payment fields" });
-
-    const generated_hmac = crypto.createHmac("sha256", RAZORPAY_KEY_SECRET)
-      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
-      .digest("hex");
-
-    if (generated_hmac === razorpay_signature) {
-      const payment = new Payment({ order_id: razorpay_order_id, payment_id: razorpay_payment_id, signature: razorpay_signature, amount: amount || 0, currency: currency || "INR", status: "success", createdAt: new Date() });
-      await payment.save();
-      return res.json({ success: true, message: "Payment verified & saved", payment });
-    } else {
-      return res.status(400).json({ success: false, error: "Invalid signature" });
-    }
-  } catch (error) {
-    console.error("Error verifying payment:", error);
-    return res.status(500).json({ error: error.message });
-  }
-};
-
-// Get payment
-const getPayments = async (req, res) => {
-  try {
-    const paymentId = req.params.paymentId || req.params.id;
-    if (!paymentId) return res.status(400).json({ error: "paymentId required" });
-
-    const dbPayment = await Payment.findOne({ payment_id: paymentId }).lean();
-    if (dbPayment) return res.json({ payment: dbPayment });
-
-    const payment = await razorpay.payments.fetch(paymentId);
-    if (!payment) return res.status(404).json({ error: "Payment not found" });
-
-    const result = { paymentId: payment.id, totalAmount: (payment.amount || 0) / 100, paidAt: payment.created_at ? new Date(payment.created_at * 1000) : null, method: payment.method || null, raw: payment };
-    return res.json({ payment: result });
-  } catch (error) {
-    console.error("Error fetching payment:", error);
-    return res.status(500).json({ error: "Error fetching payment details." });
-  }
-};
-
 // Add review
 const review = async (req, res) => {
   try {
@@ -356,7 +225,7 @@ const adminAnalytics = async (req, res) => {
       { $project: { foodName: "$food.name", sold: 1 } },
     ]);
 
-    const revenueAgg = await Order.aggregate([{ $group: { _id: null, total: { $sum: "$totalPrice" } } }]);
+      const revenueAgg = await Order.aggregate([{ $match: { paymentStatus: "paid" } }, { $group: { _id: null, total: { $sum: "$totalAmount" } } }]);
     const totalRevenue = revenueAgg[0]?.total || 0;
 
     return res.json({ dailyOrders, bestsellers, totalRevenue });
@@ -405,12 +274,6 @@ module.exports = {
   addFood,
   addBulk,
   getFood,
-  order,
-  getOrder,
-  deleteOrder,
-  createOrder,
-  verifyPayment,
-  getPayments,
   review,
   addFavorites,
   adminAnalytics,

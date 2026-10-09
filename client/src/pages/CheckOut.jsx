@@ -1,116 +1,81 @@
-import { API_URL } from "../config/api";
-import React, { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import axios from "axios";
+import { useState, useEffect, useRef } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { request, payForOrder, money } from "../utils/orders";
 
-const Checkout = () => {
-  const location = useLocation();
+export default function Checkout({ cart, setCart }) {
   const navigate = useNavigate();
-  const [razorpayLoaded, setRazorpayLoaded] = useState(false);
-  const [cartTotal, setCartTotal] = useState(0);
-
-  const RZP_KEY = import.meta.env.VITE_RAZORPAY_KEY_ID;
-
+  const [params] = useSearchParams();
+  const orderId = params.get("orderId");
+  const [order, setOrder] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [locating, setLocating] = useState(false);
+  const [locationMessage, setLocationMessage] = useState("");
+  const locked = useRef(false);
+  const draftKey = `checkout_${localStorage.getItem("userId")}`;
+  const [form, setForm] = useState(() => {
+    try { return JSON.parse(sessionStorage.getItem(draftKey)) || { deliveryAddress: "", phone: "", paymentMethod: "cod" }; }
+    catch { return { deliveryAddress: "", phone: "", paymentMethod: "cod" }; }
+  });
+  useEffect(() => { sessionStorage.setItem(draftKey, JSON.stringify(form)); }, [form, draftKey]);
   useEffect(() => {
-    const incomingTotal = location?.state?.cartTotal;
-    setCartTotal(incomingTotal || 0);
-
-    const script = document.createElement("script");
-    script.src = "https://checkout.razorpay.com/v1/checkout.js";
-    script.onload = () => setRazorpayLoaded(true);
-    document.body.appendChild(script);
-
-    return () => document.body.removeChild(script);
-  }, [location]);
-
-  const handlePayment = async () => {
+    if (!orderId) return;
+    const controller = new AbortController();
+    request(`/order-details/${orderId}`, { signal: controller.signal }).then(data => setOrder(data.order)).catch(e => { if (e.name !== "AbortError") setError(e.message); });
+    return () => controller.abort();
+  }, [orderId]);
+  const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const total = order?.totalAmount ?? (subtotal + Math.round(subtotal * 5) / 100);
+  function locate() {
+    if (!navigator.geolocation) { setLocationMessage("Location unavailable. Use your delivery address."); return; }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(position => {
+      setForm(current => ({ ...current, customerLocation: { lat: position.coords.latitude, lng: position.coords.longitude } }));
+      setLocationMessage("Delivery location added."); setLocating(false);
+    }, () => { setLocationMessage("Location unavailable. Your written address will be used."); setLocating(false); }, { timeout: 10000 });
+  }
+  async function submit(event) {
+    event.preventDefault();
+    if (locked.current) return;
+    locked.current = true; setBusy(true); setError("");
     try {
-      const token = localStorage.getItem("authToken");
-      if (!token) return alert("Please login to continue.");
-      if (!cartTotal || cartTotal <= 0) return alert("Invalid total amount.");
-
-      // 1️⃣ Create order on backend
-      const response = await axios.post(
-        `${API_URL}/api/create-order`,
-        { amount: cartTotal }, // Backend converts rupees to paise
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      const order = response.data.order;
-
-      // 2️⃣ Razorpay checkout options
-      const options = {
-        key: RZP_KEY,
-        amount: order.amount,
-        currency: order.currency,
-        name: "Food Mania",
-        description: "Order Payment",
-        order_id: order.id,
-
-        handler: async function (paymentResponse) {
-          try {
-            const verifyRes = await axios.post(
-              `${API_URL}/api/verify-payment`,
-              paymentResponse,
-              {
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${token}`,
-                },
-              }
-            );
-
-            if (verifyRes.data.success) {
-              alert("Payment successful!");
-              const userId = localStorage.getItem("userId");
-              if (userId) localStorage.removeItem(`cart_${userId}`);
-              navigate(`/payment/${paymentResponse.razorpay_payment_id}`);
-            } else {
-              alert("Payment verification failed.");
-            }
-          } catch (err) {
-            console.error("Verification Error:", err.response?.data || err);
-            alert("Payment verification failed. Check console.");
-          }
-        },
-
-        theme: { color: "#0a5" },
-      };
-
-      // 3️⃣ Open Razorpay modal
-      const rzp = new window.Razorpay(options);
-
-      rzp.on("payment.failed", (response) => {
-        console.error("Payment Failed:", response.error);
-        alert(`Payment Failed: ${response.error.description}`);
-      });
-
-      rzp.open();
-    } catch (err) {
-      console.error("Payment Error:", err.response?.data || err);
-      alert("Payment failed. Check console.");
-    }
-  };
-
-  return (
-    <div className="container mt-5 text-center">
-      <h2>Checkout</h2>
-      <h3>Total: ₹{cartTotal}</h3>
-
-      <button
-        className="btn btn-success btn-lg mt-3"
-        disabled={!razorpayLoaded}
-        onClick={handlePayment}
-      >
-        {razorpayLoaded ? "Pay Now" : "Loading..."}
-      </button>
-    </div>
-  );
-};
-
-export default Checkout;
+      let current = order;
+      if (!current) {
+        const fingerprint = JSON.stringify({ items: cart.map(item => [item._id, item.quantity]), ...form });
+        let reference;
+        try { reference = JSON.parse(sessionStorage.getItem(`${draftKey}_reference`)); } catch { /* New checkout */ }
+        if (reference?.fingerprint !== fingerprint) reference = { fingerprint, id: crypto.randomUUID() };
+        sessionStorage.setItem(`${draftKey}_reference`, JSON.stringify(reference));
+        const data = await request("/orders", { method: "POST", body: JSON.stringify({ ...form, items: cart.map(({ _id, quantity }) => ({ _id, quantity })), requestId: reference.id }) });
+        current = data.order; setOrder(current);
+        // The saved order can be resumed without removing items added later.
+        setCart([]);
+        navigate(`/checkout?orderId=${current._id}`, { replace: true });
+      }
+      if (current.paymentMethod === "online" && current.paymentStatus !== "paid") {
+        await payForOrder(current);
+      }
+      sessionStorage.removeItem(draftKey);
+      sessionStorage.removeItem(`${draftKey}_reference`);
+      navigate(`/receipt/${current._id}`, { replace: true });
+    } catch (e) {
+      setError(e.message);
+      if ([401, 403].includes(e.status)) navigate("/login", { state: { from: `/checkout${orderId ? `?orderId=${orderId}` : ""}` } });
+    } finally { locked.current = false; setBusy(false); }
+  }
+  if (!cart.length && !orderId && !order) return <div className="container my-5"><p>Your cart is empty. <Link to="/home">Browse menu</Link></p></div>;
+  return <div className="container my-5" style={{ maxWidth: 720 }}><h2>Complete your order</h2>
+    {error && <div className="alert alert-danger" role="alert">{error} <Link to="/myOrders">My Orders</Link></div>}
+    {orderId && !order ? <p>Loading saved order…</p> : <form onSubmit={submit} className="card p-4">
+      {order ? <><p>Order: {order._id}</p><p>{order.deliveryAddress}</p><p>Payment: {order.paymentMethod === "cod" ? "Cash on delivery" : "Online"}</p></> : <>
+        <label htmlFor="address">Delivery address</label><textarea id="address" className="form-control mb-3" minLength={10} maxLength={500} required value={form.deliveryAddress} onChange={e => setForm({ ...form, deliveryAddress: e.target.value })} placeholder="House, street, area, city and postal code" />
+        <label htmlFor="phone">Contact phone</label><input id="phone" className="form-control mb-3" type="tel" required minLength={10} maxLength={20} value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
+        <button type="button" className="btn btn-outline-secondary mb-2" disabled={locating} onClick={locate}>{locating ? "Finding location…" : "Add current delivery location (optional)"}</button>
+        {locationMessage && <p role="status">{locationMessage}</p>}
+        <label htmlFor="method">Payment method</label><select id="method" className="form-select mb-3" value={form.paymentMethod} onChange={e => setForm({ ...form, paymentMethod: e.target.value })}><option value="cod">Cash on delivery</option><option value="online">Pay online</option></select>
+      </>}
+      <h4>Total: {money(total)}</h4><p className="text-muted">Includes 5% tax. Final prices are confirmed when the order is saved.</p>
+      <button className="btn btn-success" disabled={busy}>{busy ? "Processing…" : (order?.paymentMethod || form.paymentMethod) === "online" ? "Pay and confirm order" : "Confirm order — pay on delivery"}</button>
+    </form>}
+  </div>;
+}
