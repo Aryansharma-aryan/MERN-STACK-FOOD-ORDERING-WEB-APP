@@ -21,7 +21,7 @@ export default function PaymentReceipt() {
         }
 
         const response = await axios.get(
-          `https://mern-stack-food-ordering-web-app-2.onrender.com/api/payment/${paymentId}`,
+          `https://mern-stack-food-ordering-web-app-4sg8.onrender.com/api/payment/${paymentId}`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }

@@ -16,6 +16,7 @@ const server = http.createServer(app);
 const allowedOrigins = [
   /^https?:\/\/localhost(:\d+)?$/,
   "https://mern-stack-food-ordering-web-app.vercel.app",
+  "https://mern-stack-food-ordering-web-9eturccao.vercel.app",
 ];
 
 app.use((req, res, next) => {

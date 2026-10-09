@@ -28,7 +28,7 @@ const AdminDashboard = () => {
 
   // Create axios instance with token
   const axiosInstance = axios.create({
-    baseURL: "https://mern-stack-food-ordering-web-app-2.onrender.com/api",
+    baseURL: "https://mern-stack-food-ordering-web-app-4sg8.onrender.com/api",
     headers: { Authorization: `Bearer ${token}` },
   });
 

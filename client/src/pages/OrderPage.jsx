@@ -4,7 +4,7 @@ import { Modal, Button, Spinner } from "react-bootstrap";
 import OrderTrackingMap from "./OrderTrackingMap";
 import "bootstrap/dist/css/bootstrap.min.css";
 
-const API_BASE = "https://mern-stack-food-ordering-web-app-2.onrender.com/api";
+const API_BASE = "https://mern-stack-food-ordering-web-app-4sg8.onrender.com/api";
 
 const OrderPage = () => {
   const [orders, setOrders] = useState([]);

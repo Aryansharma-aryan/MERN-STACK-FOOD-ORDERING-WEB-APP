@@ -28,7 +28,7 @@ const DisplayData = ({ setCart = () => {} }) => {
         const timeout = setTimeout(() => controller.abort(), 7000);
 
         const res = await fetch(
-          "https://mern-stack-food-ordering-web-app-2.onrender.com/api/food",
+          "https://mern-stack-food-ordering-web-app-4sg8.onrender.com/api/food",
           {
             credentials: "include",
             mode: "cors",

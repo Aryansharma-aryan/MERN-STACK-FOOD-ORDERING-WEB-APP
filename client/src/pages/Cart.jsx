@@ -86,7 +86,7 @@ export default function Cart({ cart, setCart }) {
 
         try {
           const response = await fetch(
-            `https://mern-stack-food-ordering-web-app-2.onrender.com/api/orders`,
+            `https://mern-stack-food-ordering-web-app-4sg8.onrender.com/api/orders`,
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
